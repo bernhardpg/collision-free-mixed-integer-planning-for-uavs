@@ -10,7 +10,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # find drake
-find_package(drake CONFIG REQUIRED)
+find_package(
+	drake CONFIG REQUIRED
+	)
 
 # add include directory
 include_directories(include)
