@@ -16,13 +16,19 @@ set(CMAKE_BUILD_TYPE Debug)
 find_package(
 	drake CONFIG REQUIRED
 	)
+find_package(Python3 COMPONENTS Development NumPy)
+
 
 # add include directory
 include_directories(include)
+include_directories(${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 
 # add the executable
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} drake::drake trajopt)
+target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
 
 add_library(trajopt src/trajectory_optimization.cpp)
 target_link_libraries(trajopt drake::drake)
+
+

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <Eigen/Dense>
 #include <Eigen/Core>
+#include "plot/matplotlibcpp.h"
 
 namespace trajopt
 {
@@ -31,10 +32,10 @@ namespace trajopt
 			Eigen::VectorXd eval(const double t, const int derivative_order);
 
 			void add_constraint(
-					const int t, const int derivative_order, Eigen::VectorXd lb
+					const double t, const int derivative_order, Eigen::VectorXd lb
 					);
 			void add_constraint(
-					const int t, const int derivative_order, Eigen::VectorXd lb, Eigen::VectorXd ub
+					const double t, const int derivative_order, Eigen::VectorXd lb, Eigen::VectorXd ub
 					);
 
 		private:
