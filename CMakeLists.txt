@@ -35,17 +35,21 @@ include_directories(${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 # add executables
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} drake::drake trajopt)
-target_link_libraries(${PROJECT_NAME} iris trajopt)
 target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
+target_link_libraries(${PROJECT_NAME} iris trajopt tests)
 
 add_library(trajopt src/trajectory_optimization.cpp)
 target_link_libraries(trajopt drake::drake)
 target_link_libraries(trajopt convex_hull)
-target_link_libraries(trajopt plotter)
 
 add_library(plotter src/plot/plotter.cpp)
 target_link_libraries(plotter Eigen3::Eigen)
 
 add_library(convex_hull src/tools/convexHull.cpp)
 target_link_libraries(convex_hull Eigen3::Eigen)
+
+add_library(tests src/test/tests.cpp)
+target_link_libraries(tests Eigen3::Eigen)
+target_link_libraries(tests trajopt)
+target_link_libraries(tests plotter)
 

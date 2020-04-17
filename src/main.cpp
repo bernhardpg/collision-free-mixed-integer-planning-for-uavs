@@ -1,8 +1,8 @@
-#include "trajectory_optimization.h"
+#include "test/tests.h"
 
 int main(int argc, char* argv[])
 {
-	trajopt::test_iris();
+	test_iris();
 
 	return 0;
 }

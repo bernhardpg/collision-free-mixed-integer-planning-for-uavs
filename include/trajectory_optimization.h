@@ -4,9 +4,7 @@
 #include <drake/solvers/solve.h>
 #include <iostream>
 #include <Eigen/Dense>
-#include <Eigen/Core>
 #include "iris/iris.h"
-#include "plot/plotter.h"
 
 namespace trajopt
 {
@@ -48,9 +46,5 @@ namespace trajopt
 
 			drake::solvers::MathematicalProgram prog_;
 	};
-
-	void test_polynomial_trajectory();
-	void test_iris();
 	int factorial(int n);
-
 }
