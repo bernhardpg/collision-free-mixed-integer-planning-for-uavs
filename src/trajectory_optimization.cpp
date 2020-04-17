@@ -161,7 +161,37 @@ void PPTrajectory::generate()
 	std::cout << "Solution result: " << result_.get_solution_result() << std::endl;
 }
 
-void program_init()
+void test_iris()
+{
+	std::cout << "Testing IRIS" << std::endl;
+	iris::IRISProblem problem(2);
+
+	problem.setSeedPoint(Eigen::Vector2d(0.1, 0.1));
+
+  Eigen::MatrixXd obs(2,2);
+  // Inflate a region inside a 1x1 box
+  obs << 0, 1,
+         0, 0;
+  problem.addObstacle(obs);
+  obs << 1, 1,
+         0, 1;
+  problem.addObstacle(obs);
+  obs << 1, 0,
+         1, 1;
+  problem.addObstacle(obs);
+  obs << 0, 0,
+         1, 0;
+  problem.addObstacle(obs);
+
+  iris::IRISOptions options;
+  iris::IRISRegion region = inflate_region(problem, options);
+
+  std::cout << "C: " << region.ellipsoid.getC() << std::endl;
+  std::cout << "d: " << region.ellipsoid.getD() << std::endl;
+}
+
+
+void test_polynomial_trajectory()
 {
 	const int tf = 3;
 	auto sample_times = Eigen::VectorXd::LinSpaced(6, 0, tf);

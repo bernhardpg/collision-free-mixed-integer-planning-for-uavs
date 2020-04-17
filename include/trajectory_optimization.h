@@ -7,6 +7,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include "plot/matplotlibcpp.h"
+#include "iris/iris.h"
 
 namespace trajopt
 {
@@ -49,7 +50,8 @@ namespace trajopt
 			drake::solvers::MathematicalProgram prog_;
 	};
 
-	void program_init();
+	void test_polynomial_trajectory();
+	void test_iris();
 	int factorial(int n);
 
 }

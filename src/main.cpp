@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[])
 {
-	trajopt::program_init();
+	trajopt::test_iris();
 
 	return 0;
 }
