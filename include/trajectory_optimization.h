@@ -8,6 +8,7 @@
 #include <Eigen/Core>
 #include "plot/matplotlibcpp.h"
 #include "iris/iris.h"
+#include "tools/ConvexHull.h"
 
 namespace trajopt
 {
@@ -52,6 +53,8 @@ namespace trajopt
 
 	void test_polynomial_trajectory();
 	void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles);
+	void plot_convex_hull(std::vector<Eigen::VectorXd> points);
+	void plot_region(std::vector<Eigen::VectorXd> points);
 	void test_iris();
 	int factorial(int n);
 

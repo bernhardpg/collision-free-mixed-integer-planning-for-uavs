@@ -164,52 +164,71 @@ void PPTrajectory::generate()
 void test_iris()
 {
 	std::cout << "Testing IRIS" << std::endl;
+
+	// Create bounding box
+	Eigen::MatrixXd A(4,2);
+	A << -1, 0,
+				0, -1,
+				1, 0,
+				0, 1;
+	Eigen::VectorXd b(4);
+	b << 0, 0, 5, 5;
+	iris::Polyhedron bounds(A,b);
+
 	iris::IRISProblem problem(2);
+	problem.setBounds(bounds);
 	problem.setSeedPoint(Eigen::Vector2d(0.1, 0.1));
 
-
 	std::vector<Eigen::MatrixXd> obstacles;
-  Eigen::MatrixXd obs(2,2);
-  // Inflate a region inside a 1x1 box
-  obs << 0, 1,
-         0, 0;
+	Eigen::MatrixXd obs(4,2);
+	obs << 2, 0,
+				 2, 2,
+				 3, 2,
+				 3, 0;
+	problem.addObstacle(obs.transpose());
 	obstacles.push_back(obs);
-  problem.addObstacle(obs);
-  obs << 1, 1,
-         0, 1;
+	obs << -1, 0,
+				 -1, 2,
+				  0, 2,
+					0.2, 0;
+	problem.addObstacle(obs.transpose());
 	obstacles.push_back(obs);
-  problem.addObstacle(obs);
-  obs << 1, 0,
-         1, 1;
-	obstacles.push_back(obs);
-  problem.addObstacle(obs);
-  obs << 0, 0,
-         1, 0;
-	obstacles.push_back(obs);
-  problem.addObstacle(obs);
-
-
-  Eigen::MatrixXd obs2(4,2);
-	obs2 << 0.1, 0.1,
-					0.1, 0.2,
-					0.2, 0.2,
-					0.2, 0.1;
-	obstacles.push_back(obs2);
-	
 
   iris::IRISOptions options;
   iris::IRISRegion region = inflate_region(problem, options);
 
-  //std::cout << "C: " << region.ellipsoid.getC() << std::endl;
-  //std::cout << "d: " << region.ellipsoid.getD() << std::endl;
-
 	iris::Polyhedron solution = region.getPolyhedron();
-	std::cout << "A: " << std::endl << solution.getA() << std::endl;
-	std::cout << "B: " << std::endl << solution.getB() << std::endl;
-
+	
+	auto points = solution.generatorPoints();
+	plot_convex_hull(points);
 	plot_obstacles(obstacles);
 }
 
+void plot_convex_hull(std::vector<Eigen::VectorXd> points)
+{
+	auto convex_hull = makeConvexHull(points);
+	plot_region(convex_hull);
+}
+
+void plot_region(std::vector<Eigen::VectorXd> points)
+{
+	std::vector<double> x;
+	std::vector<double> y;
+
+	for (int i = 0; i < points.size(); ++i)
+	{	
+		x.push_back(points[i](0));
+		y.push_back(points[i](1));
+	}
+
+	x.push_back(points[0](0));
+	y.push_back(points[0](1));
+
+	plt::fill(x, y, {});
+}
+
+// Takes obstacles defined by simplexes and plots them
+// Obstacle: (x,y)
 void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles)
 {
 	for (int i = 0; i < obstacles.size(); ++i)

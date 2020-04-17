@@ -42,6 +42,9 @@ target_link_libraries(${PROJECT_NAME} iris trajopt)
 target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
 
 add_library(trajopt src/trajectory_optimization.cpp)
+add_library(convex_hull src/tools/convexHull.cpp)
+target_link_libraries(convex_hull drake::drake)
 target_link_libraries(trajopt drake::drake)
+target_link_libraries(trajopt convex_hull)
 
 
