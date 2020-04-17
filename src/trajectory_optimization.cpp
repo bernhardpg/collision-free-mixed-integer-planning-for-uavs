@@ -165,30 +165,70 @@ void test_iris()
 {
 	std::cout << "Testing IRIS" << std::endl;
 	iris::IRISProblem problem(2);
-
 	problem.setSeedPoint(Eigen::Vector2d(0.1, 0.1));
 
+
+	std::vector<Eigen::MatrixXd> obstacles;
   Eigen::MatrixXd obs(2,2);
   // Inflate a region inside a 1x1 box
   obs << 0, 1,
          0, 0;
+	obstacles.push_back(obs);
   problem.addObstacle(obs);
   obs << 1, 1,
          0, 1;
+	obstacles.push_back(obs);
   problem.addObstacle(obs);
   obs << 1, 0,
          1, 1;
+	obstacles.push_back(obs);
   problem.addObstacle(obs);
   obs << 0, 0,
          1, 0;
+	obstacles.push_back(obs);
   problem.addObstacle(obs);
+
+
+  Eigen::MatrixXd obs2(4,2);
+	obs2 << 0.1, 0.1,
+					0.1, 0.2,
+					0.2, 0.2,
+					0.2, 0.1;
+	obstacles.push_back(obs2);
+	
 
   iris::IRISOptions options;
   iris::IRISRegion region = inflate_region(problem, options);
 
-  std::cout << "C: " << region.ellipsoid.getC() << std::endl;
-  std::cout << "d: " << region.ellipsoid.getD() << std::endl;
+  //std::cout << "C: " << region.ellipsoid.getC() << std::endl;
+  //std::cout << "d: " << region.ellipsoid.getD() << std::endl;
+
+	iris::Polyhedron solution = region.getPolyhedron();
+	std::cout << "A: " << std::endl << solution.getA() << std::endl;
+	std::cout << "B: " << std::endl << solution.getB() << std::endl;
+
+	plot_obstacles(obstacles);
 }
+
+void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles)
+{
+	for (int i = 0; i < obstacles.size(); ++i)
+	{
+		std::vector<double> x;
+		std::vector<double> y;
+		for (int row = 0; row < obstacles[i].rows(); ++row)			
+		{
+			x.push_back(obstacles[i](row,0));
+			y.push_back(obstacles[i](row,1));
+		}
+		x.push_back(obstacles[i](0,0));
+		y.push_back(obstacles[i](0,1));
+		plt::plot(x, y);
+	}
+
+	plt::show();
+}
+
 
 
 void test_polynomial_trajectory()

@@ -51,6 +51,7 @@ namespace trajopt
 	};
 
 	void test_polynomial_trajectory();
+	void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles);
 	void test_iris();
 	int factorial(int n);
 
