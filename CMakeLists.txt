@@ -38,12 +38,13 @@ target_link_libraries(${PROJECT_NAME} drake::drake trajopt)
 target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
 target_link_libraries(${PROJECT_NAME} iris trajopt tests)
 
-add_library(trajopt src/trajectory_optimization.cpp)
+add_library(trajopt src/trajectory_optimization.cpp src/trajopt/PPTrajectory.cpp)
 target_link_libraries(trajopt drake::drake)
-target_link_libraries(trajopt convex_hull)
 
 add_library(plotter src/plot/plotter.cpp)
 target_link_libraries(plotter Eigen3::Eigen)
+target_link_libraries(plotter trajopt)
+target_link_libraries(plotter convex_hull)
 
 add_library(convex_hull src/tools/convexHull.cpp)
 target_link_libraries(convex_hull Eigen3::Eigen)

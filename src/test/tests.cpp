@@ -1,5 +1,106 @@
 #include "test/tests.h"
 
+void test_add_constraint()
+{
+	// Create bounding box
+	Eigen::MatrixXd A_bounds(4,2);
+	A_bounds << -1, 0,
+				0, -1,
+				1, 0,
+				0, 1;
+	Eigen::VectorXd b_bounds(4);
+	b_bounds << 2, 0, 5, 5;
+	iris::Polyhedron bounds(A_bounds,b_bounds);
+
+	// Construct 2D test environment
+	iris::IRISProblem problem(2);
+	problem.setBounds(bounds);
+
+	std::vector<Eigen::MatrixXd> obstacles;
+	Eigen::MatrixXd obs(4,2);
+
+	obs << 4, 0,
+				 4, 2,
+				 5, 2,
+				 5, 0;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+	obs << -1, 0,
+				 -1, 2,
+				  0, 2,
+					0.2, 0;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+	
+	obs << 2, 0,
+				 2, 4,
+				 2.2, 4,
+				 2.2, 0; 
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+	// Get convex regions
+
+  iris::IRISOptions options;
+	std::vector<Eigen::Vector2d> seed_points;
+	seed_points.push_back(Eigen::Vector2d(1,1));
+	seed_points.push_back(Eigen::Vector2d(3,1));
+	seed_points.push_back(Eigen::Vector2d(2.1,4.5));
+
+	std::vector<iris::Polyhedron> convex_polygons;
+
+	for (int i = 0; i < seed_points.size(); ++i)
+	{
+		problem.setSeedPoint(seed_points[i]);
+		iris::IRISRegion region = inflate_region(problem, options);
+		convex_polygons.push_back(region.getPolyhedron());
+	}
+
+	std::vector<Eigen::MatrixXd> As;
+	std::vector<Eigen::VectorXd> bs;
+	for (int i = 0; i < convex_polygons.size(); ++i)
+	{
+		// Matrix containing one convex region
+		As.push_back(convex_polygons[i].getA());
+		bs.push_back(convex_polygons[i].getB());
+	}
+
+	// Plot convex regions
+	for (int i = 0; i < convex_polygons.size(); ++i)
+	{
+		auto points = convex_polygons[i].generatorPoints();
+		plot_convex_hull(points);
+	}
+
+	plot_obstacles(obstacles);
+
+	// Create polynomial trajectory
+	const int tf = 3;
+	auto sample_times = Eigen::VectorXd::LinSpaced(6, 0, tf);
+	const int num_vars = 2;
+	const int degree = 4;
+	const int continuity_degree = 3;
+
+	trajopt::PPTrajectory traj(sample_times, num_vars, degree, continuity_degree);
+
+	Eigen::Vector2d pos_initial(1,1);
+	Eigen::Vector2d pos_final(3,3);
+	traj.add_constraint(0.0, 0, pos_initial);
+	traj.add_constraint(0.0, 1, pos_initial);
+	traj.add_constraint(0.0, 2, pos_initial);
+	traj.add_constraint(tf, 0, pos_final);
+	traj.add_constraint(tf, 1, pos_final);
+	traj.add_constraint(tf, 2, pos_final);
+
+	//traj.add_region_constraint(0, convex_polygons[0].getA(), convex_polygons[0].getB());
+	//traj.add_region_constraint(0, convex_polygons[1].getA(), convex_polygons[1].getB());
+
+	traj.generate();
+
+	plot_trajectory(&traj, sample_times, tf);
+}
+
 void test_iris()
 {
 	std::cout << "Testing IRIS" << std::endl;
@@ -37,7 +138,7 @@ void test_iris()
   iris::IRISRegion region = inflate_region(problem, options);
 
 	iris::Polyhedron solution = region.getPolyhedron();
-	
+
 	auto points = solution.generatorPoints();
 	plot_convex_hull(points);
 	plot_obstacles(obstacles);

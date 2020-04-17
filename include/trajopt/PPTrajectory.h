@@ -8,11 +8,10 @@
 
 namespace trajopt
 {
-
-	class MISOSProblem
+	class PPTrajectory
 	{
 		public:
-			MISOSProblem(
+			PPTrajectory(
 					Eigen::VectorXd sample_times,
 					const int num_vars,
 					const int degree,
@@ -36,17 +35,13 @@ namespace trajopt
 					const double t, const int derivative_order, Eigen::VectorXd lb, Eigen::VectorXd ub
 					);
 
-			void add_region_constraint(int polynomial, Eigen::MatrixXd A, Eigen::VectorXd b);
-
 		private:
 			Eigen::VectorXd sample_times_;
 			const int num_vars_;
 			const int degree_;
 			const int continuity_degree_;
-			const int num_traj_segments_;
 			drake::solvers::MathematicalProgramResult result_;
 			std::vector<drake::solvers::MatrixXDecisionVariable> coeffs_;
-			drake::solvers::MatrixXIndeterminate t_;
 
 
 			drake::solvers::MathematicalProgram prog_;
