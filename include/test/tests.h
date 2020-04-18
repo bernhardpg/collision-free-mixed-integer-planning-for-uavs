@@ -5,6 +5,7 @@
 #include "trajectory_optimization.h"
 #include "plot/plotter.h"
 
+void test_trajopt();
 void test_polynomial_trajectory();
 void test_mathematical_program();
 void test_iris();

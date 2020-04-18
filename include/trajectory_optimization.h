@@ -8,48 +8,32 @@
 
 namespace trajopt
 {
+	typedef Eigen::MatrixX<drake::symbolic::Expression> coeff_matrix_t;
 
 	class MISOSProblem
 	{
 		public:
 			MISOSProblem(
-					Eigen::VectorXd sample_times,
+					const int num_traj_segments,
 					const int num_vars,
 					const int degree,
 					const int continuity_degree
 					);
 
-			void generate();
-			Eigen::VectorX<drake::symbolic::Expression> eval_symbolic(
-					const double t
-					);
-			Eigen::VectorX<drake::symbolic::Expression> eval_symbolic(
-					const double t, const int derivative_order
-					);
-			Eigen::VectorXd eval(const double t);
-			Eigen::VectorXd eval(const double t, const int derivative_order);
-
-			void add_constraint(
-					const double t, const int derivative_order, Eigen::VectorXd lb
-					);
-			void add_constraint(
-					const double t, const int derivative_order, Eigen::VectorXd lb, Eigen::VectorXd ub
-					);
-
-			void add_region_constraint(int polynomial, Eigen::MatrixXd A, Eigen::VectorXd b);
-
 		private:
-			Eigen::VectorXd sample_times_;
 			const int num_vars_;
 			const int degree_;
 			const int continuity_degree_;
 			const int num_traj_segments_;
+
+			drake::symbolic::Variable t_;
+			std::vector<coeff_matrix_t> coeffs_;
+			std::vector<std::vector<coeff_matrix_t>> coeffs_d;
 			drake::solvers::MathematicalProgramResult result_;
-			std::vector<drake::solvers::MatrixXDecisionVariable> coeffs_;
-			drake::solvers::MatrixXIndeterminate t_;
+			Eigen::VectorX<drake::symbolic::Expression> m_; // Vector of monomial basis functions
 
 
 			drake::solvers::MathematicalProgram prog_;
 	};
 	int factorial(int n);
-}
+	}

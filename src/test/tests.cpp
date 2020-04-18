@@ -1,5 +1,10 @@
 #include "test/tests.h"
 
+void test_trajopt()
+{
+	auto traj = trajopt::MISOSProblem(6, 2, 3, 2);
+}
+
 void test_add_constraint()
 {
 	// Create bounding box
@@ -98,6 +103,7 @@ void test_add_constraint()
 
 	traj.generate();
 
+	// TODO remove this
 	plot_trajectory(&traj, sample_times, tf);
 }
 
