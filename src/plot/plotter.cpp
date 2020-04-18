@@ -1,6 +1,27 @@
 #include "plot/plotter.h"
 
-void plot_trajectory(trajopt::PPTrajectory *traj, Eigen::VectorXd sample_times, double tf)
+void plot_traj(trajopt::MISOSProblem *traj, int num_traj_segments)
+{
+	int tf = num_traj_segments;
+
+	const double delta_t = 0.01;
+	int N = (int)(tf / delta_t);
+
+	std::vector<double> x;
+	std::vector<double> y;
+
+	for (int i = 0; i < N; ++i)
+	{
+		double t = 0.0 + delta_t * i;
+		x.push_back(traj->eval(t)(0));
+		y.push_back(traj->eval(t)(1));
+	}
+
+	plt::plot(x, y);
+	plt::show();
+}
+
+void plot_PPTrajectory(trajopt::PPTrajectory *traj, Eigen::VectorXd sample_times, double tf)
 {
 	// TODO move some of this into trajopt
 	const double delta_t = 0.01;

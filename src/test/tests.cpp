@@ -2,7 +2,19 @@
 
 void test_trajopt()
 {
-	auto traj = trajopt::MISOSProblem(6, 2, 3, 2);
+	int num_vars = 2;
+	int num_traj_segments = 3;
+	int degree = 5;
+	int cont_degree = 5;
+	Eigen::VectorX<double> init_pos(num_vars);
+	init_pos << 0, 0;
+
+	Eigen::VectorX<double> final_pos(num_vars);
+	init_pos << 1, -10;
+
+	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
+	traj.generate();
+	plot_traj(&traj, num_traj_segments);
 }
 
 void test_add_constraint()
@@ -104,7 +116,7 @@ void test_add_constraint()
 	traj.generate();
 
 	// TODO remove this
-	plot_trajectory(&traj, sample_times, tf);
+	plot_PPTrajectory(&traj, sample_times, tf);
 }
 
 void test_iris()
