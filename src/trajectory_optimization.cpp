@@ -1,4 +1,5 @@
 #include "trajectory_optimization.h"
+#include <drake/solvers/mosek_solver.h>
 
 
 namespace trajopt
@@ -96,18 +97,6 @@ MISOSProblem::MISOSProblem(
 	prog_.AddLinearConstraint(
 			(coeffs_[num_traj_segments_ - 1] * m_value_t1).array() == final_cond.array());
 
-	// TODO add derivative initial conditions too?
-	/*// Add initial and final conditions on derivatives
-	for (int d = 1; d < init_cond.cols(); ++d)
-	{
-		prog_.AddLinearConstraint((coeffs_d_[0][d - 1] * m_value_t0).array() == init_cond(Eigen::all, 0).array());
-	}
-	for (int d = 1; d < final_cond.cols(); ++d)
-	{
-		prog_.AddLinearConstraint((coeffs_d_[num_traj_segments_ - 1][d - 1] * m_value_t0).array() == final_cond(Eigen::all, 0).array());
-	}
-	*/
-
 	// TODO change
 	// Force first derivatives at initial and final position to be 0
 	for (int d = 1; d <= 1; ++d)
@@ -121,13 +110,17 @@ MISOSProblem::MISOSProblem(
 			);
 	}
 
+	auto a = prog_.NewContinuousVariables(num_traj_segments, "a");
+
 	// Add cost to minimize highest derivative order coefficients
 	for (int j = 0; j < num_traj_segments_; ++j)
-	{ 
+	{
+		prog_.AddLinearCost(a(j));
 		// Remember that highest order derivative only has one coefficient
 		auto quadratic_form = coeffs_d_[j][degree_ - 1](Eigen::all, 0)
 			.dot(coeffs_d_[j][degree_ - 1](Eigen::all, 0));
-		prog_.AddQuadraticCost(quadratic_form);
+		//prog_.AddQuadraticCost(quadratic_form);
+		prog_.AddLorentzConeConstraint(a(j), quadratic_form);
 	}
 }
 
@@ -146,6 +139,30 @@ Eigen::VectorX<drake::symbolic::Expression> MISOSProblem::get_coefficients(drake
 	return c;
 }
 
+void MISOSProblem::add_convex_regions(
+		std::vector<Eigen::MatrixX<double>> As, std::vector<Eigen::VectorX<double>> bs
+		)
+{
+	num_regions_ = As.size();
+	H_ = prog_.NewBinaryVariables(num_regions_, num_traj_segments_, "H");
+	regions_A_ = As;
+	regions_b_ = bs;
+
+	// Ensure that each traj segment is strictly within one region
+	for (int j = 0; j < num_traj_segments_; ++j)
+	{
+		prog_.AddLinearConstraint(H_(Eigen::all, j).sum() == 1);
+	}
+
+	for (int j = 0; j < num_traj_segments_; ++j)
+	{
+		for (int r = 0; r < num_regions_; ++r)
+		{
+			add_region_constraint(r,j);
+		}
+	}
+}
+
 void MISOSProblem::add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, int segment_number)
 {
 	for (int i = 0; i < A.rows(); ++i)
@@ -156,13 +173,103 @@ void MISOSProblem::add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, i
 				bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_, {t_}
 				);
 
-		drake::symbolic::Polynomial sigma_1 = prog_.NewSosPolynomial({t_}, degree_ - 1).first;
-		drake::symbolic::Polynomial sigma_2 = prog_.NewSosPolynomial({t_}, degree_ - 1).first;
+		drake::symbolic::Polynomial sigma_1;
+		drake::symbolic::Polynomial sigma_2;
+
+		// Add second order cone constraint
+		if (degree_ == 3)
+		{
+			coeff_matrix_t sigma_coeffs = prog_.NewContinuousVariables(2, 3, "Beta");
+
+			sigma_1  = drake::symbolic::Polynomial(sigma_coeffs(0, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
+			sigma_2  = drake::symbolic::Polynomial(sigma_coeffs(1, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
+
+			prog_.AddRotatedLorentzConeConstraint(
+					sigma_coeffs(0,0),
+					sigma_coeffs(0,2),
+					0.25 * sigma_coeffs(0,1) * sigma_coeffs(0,1)
+					);
+
+			prog_.AddRotatedLorentzConeConstraint(
+					sigma_coeffs(1,0),
+					sigma_coeffs(1,2),
+					0.25 * sigma_coeffs(1,1) * sigma_coeffs(1,1)
+					);
+		}
+		// Add SOS constraint
+		else
+		{
+			std::cout << "Adding SOS polynomial constraint" << std::endl;
+			sigma_1 = prog_.NewSosPolynomial(
+					{t_}, degree_ - 1
+					).first;
+			sigma_2 = prog_.NewSosPolynomial(
+					{t_}, degree_ - 1
+					).first;
+		}
 
 		// Add constraints: q(t) = t * sigma1(t) + (1 - t) * sigma2(t)
 		// by setting coefficiants equal
 		prog_.AddLinearConstraint(
 				get_coefficients(q).array() == 
+				get_coefficients(t_ * sigma_1 + sigma_2 - t_ * sigma_2).array()
+				);
+	}
+}
+
+void MISOSProblem::add_region_constraint(int region_number, int segment_number)
+{
+	for (int i = 0; i < regions_A_[region_number].rows(); ++i)
+	{
+		auto ai_transpose = regions_A_[region_number](i, Eigen::all);
+		auto bi = regions_b_[region_number](i);
+		drake::symbolic::Polynomial q(
+				bi + big_M_ * H_(region_number, segment_number)
+				- vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_,
+				{t_}
+				);
+
+		drake::symbolic::Polynomial sigma_1;
+		drake::symbolic::Polynomial sigma_2;
+
+		// Add second order cone constraint
+		if (degree_ == 3)
+		{
+			std::cout << "Adding SOCP polynomial constraint" << std::endl;
+			coeff_matrix_t sigma_coeffs = prog_.NewContinuousVariables(2, 3, "Beta");
+
+			sigma_1  = drake::symbolic::Polynomial(sigma_coeffs(0, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
+			sigma_2  = drake::symbolic::Polynomial(sigma_coeffs(1, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
+
+			Eigen::VectorX<drake::symbolic::Expression> v(3);
+			v << sigma_coeffs(0,0) + sigma_coeffs(0,2),
+					 0.5 * sigma_coeffs(0,1),
+					sigma_coeffs(0,0) - sigma_coeffs(0,2);
+			prog_.AddLorentzConeConstraint(v);
+
+			Eigen::VectorX<drake::symbolic::Expression> v2(3);
+			v2 << sigma_coeffs(1,0) + sigma_coeffs(1,2),
+					 0.5 * sigma_coeffs(1,1),
+					sigma_coeffs(1,0) - sigma_coeffs(1,2);
+			prog_.AddLorentzConeConstraint(v2);
+
+		}
+		// Add SOS constraint
+		else
+		{
+			std::cout << "Adding SOS polynomial constraint" << std::endl;
+			sigma_1 = prog_.NewSosPolynomial(
+					{t_}, degree_ - 1
+					).first;
+			sigma_2 = prog_.NewSosPolynomial(
+					{t_}, degree_ - 1
+					).first;
+		}
+
+		// Add constraints: q(t) = t * sigma1(t) + (1 - t) * sigma2(t)
+		// by setting coefficients equal
+		prog_.AddLinearConstraint(
+				get_coefficients(q).array() ==
 				get_coefficients(t_ * sigma_1 + sigma_2 - t_ * sigma_2).array()
 				);
 	}
@@ -175,6 +282,16 @@ void MISOSProblem::generate()
 	std::cout << "Solver id: " << result_.get_solver_id() << std::endl;
 	std::cout << "Found solution: " << result_.is_success() << std::endl;
 	std::cout << "Solution result: " << result_.get_solution_result() << std::endl;
+	auto details = result_.get_solver_details<drake::solvers::MosekSolver>();
+	std::cout << "Solver details: rescode: \n" << details.rescode << std::endl;
+	std::cout << "Solver details: solution_status: \n" << details.solution_status << std::endl;
+
+	auto inf_const = drake::solvers::GetInfeasibleConstraints(prog_, result_);
+	std::cout << "Num inf consts: " << inf_const.size() << std::endl;
+	for (auto i : inf_const)
+	{
+		std::cout << "Infeasible constraint: " << i << std::endl;
+	}
 
 	polynomials_.resize(num_vars_, num_traj_segments_);
 	for (int j = 0; j < num_traj_segments_; ++j)

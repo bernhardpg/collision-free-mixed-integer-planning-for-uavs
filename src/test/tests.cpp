@@ -108,13 +108,16 @@ void test_add_constraint()
 	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
 	traj.add_region_constraint(As[0], bs[0], 0);
 	traj.add_region_constraint(As[0], bs[0], 1);
-	traj.add_region_constraint(As[1], bs[1], 2);
+	traj.add_region_constraint(As[0], bs[0], 2);
 	traj.add_region_constraint(As[1], bs[1], 3);
 	traj.add_region_constraint(As[1], bs[1], 4);
 	traj.add_region_constraint(As[2], bs[2], 5);
 	traj.add_region_constraint(As[2], bs[2], 6);
 
+	//traj.add_convex_regions(As, bs);
+
 	traj.generate();
+	//
 	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
 }
 

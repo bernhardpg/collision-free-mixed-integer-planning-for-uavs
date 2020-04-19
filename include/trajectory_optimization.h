@@ -5,7 +5,7 @@
 #include <drake/solvers/solve.h>
 #include <drake/common/trajectories/piecewise_polynomial.h>
 #include <iostream>
-#include <Eigen/Dense>
+#include <Eigen/Core>
 
 
 namespace trajopt
@@ -25,7 +25,12 @@ namespace trajopt
 					);
 
 
+			void add_region_constraint(int region_number, int segment_number);
 			void add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, int segment_number);
+
+			void add_convex_regions(
+					std::vector<Eigen::MatrixX<double>> As, std::vector<Eigen::VectorX<double>> bs
+					);
 			void generate();
 			Eigen::VectorX<double> eval(double t);
 
@@ -34,12 +39,19 @@ namespace trajopt
 			const int degree_;
 			const int continuity_degree_;
 			const int num_traj_segments_;
+			int num_regions_;
 			const double vehicle_radius_;
+			const double big_M_ = 5; // TODO set arbitrarily
+
+			std::vector<Eigen::MatrixX<double>> regions_A_;
+			std::vector<Eigen::VectorX<double>> regions_b_;
+
+			Eigen::VectorX<drake::symbolic::Expression> m_; // Vector of monomial basis functions
+			Eigen::MatrixX<drake::symbolic::Expression> H_;
 
 			drake::symbolic::Variable t_;
 			std::vector<coeff_matrix_t> coeffs_;
 			std::vector<std::vector<coeff_matrix_t>> coeffs_d_;
-			Eigen::VectorX<drake::symbolic::Expression> m_; // Vector of monomial basis functions
 			drake::solvers::MathematicalProgram prog_;
 
 			drake::solvers::MathematicalProgramResult result_;
