@@ -36,7 +36,7 @@ namespace trajopt
 
 			drake::symbolic::Variable t_;
 			std::vector<coeff_matrix_t> coeffs_;
-			std::vector<std::vector<coeff_matrix_t>> coeffs_d_; // TODO add line
+			std::vector<std::vector<coeff_matrix_t>> coeffs_d_;
 			Eigen::VectorX<drake::symbolic::Expression> m_; // Vector of monomial basis functions
 
 			drake::solvers::MathematicalProgramResult result_;

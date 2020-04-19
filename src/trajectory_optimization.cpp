@@ -91,6 +91,7 @@ MISOSProblem::MISOSProblem(
 
 	// Add initial and final conditions
 	prog_.AddLinearConstraint((coeffs_[0] * m_value_t0).array() == init_cond.array());
+
 	prog_.AddLinearConstraint(
 			(coeffs_[num_traj_segments_ - 1] * m_value_t1).array() == final_cond.array());
 
@@ -121,6 +122,7 @@ MISOSProblem::MISOSProblem(
 	// Add cost to minimize highest derivative order
 	for (int j = 0; j < num_traj_segments_; ++j)
 	{ 
+		// Remember that highest order derivative only has one coefficient
 		auto quadratic_form = coeffs_d_[j][continuity_degree_ - 1](Eigen::all, 0)
 			.dot(coeffs_d_[j][continuity_degree - 1](Eigen::all, 0));
 		prog_.AddQuadraticCost(quadratic_form);
@@ -153,8 +155,10 @@ Eigen::VectorX<double> MISOSProblem::eval(double t)
 	int traj_index = 0;
 	while ((double) traj_index + 1 < t) ++traj_index;
 
+	double t_rel = t - (double) traj_index;
+
 	Eigen::VectorX<double> val(num_vars_);
-	drake::symbolic::Environment at_t {{t_, t}};
+	drake::symbolic::Environment at_t {{t_, t_rel}};
 	for (int i = 0; i < num_vars_; ++i)
 	{
 		val(i) = polynomials_(i, traj_index).Evaluate(at_t);

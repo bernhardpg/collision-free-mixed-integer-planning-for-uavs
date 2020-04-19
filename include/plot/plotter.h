@@ -10,8 +10,12 @@
 
 namespace plt = matplotlibcpp;
 
-void plot_traj(trajopt::MISOSProblem *traj, int num_traj_segments);
-void plot_PPTrajectory(trajopt::PPTrajectory *traj, Eigen::VectorXd sample_times, double tf);
+void plot_traj(
+		trajopt::MISOSProblem *traj, int num_traj_segments, Eigen::VectorX<double> init_pos, Eigen::VectorX<double> final_pos
+		);
+void plot_PPTrajectory(
+		trajopt::PPTrajectory *traj, Eigen::VectorXd sample_times, double tf
+		);
 void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles);
 void plot_convex_hull(std::vector<Eigen::VectorXd> points);
 void plot_region(std::vector<Eigen::VectorXd> points);

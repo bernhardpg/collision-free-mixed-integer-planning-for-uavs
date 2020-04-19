@@ -7,14 +7,14 @@ void test_trajopt()
 	int degree = 5;
 	int cont_degree = 5;
 	Eigen::VectorX<double> init_pos(num_vars);
-	init_pos << 0, 0;
+	init_pos << 5.0, 0.0;
 
 	Eigen::VectorX<double> final_pos(num_vars);
-	init_pos << 1, -10;
+	final_pos << 1.0, 15.0;
 
 	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
 	traj.generate();
-	plot_traj(&traj, num_traj_segments);
+	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
 }
 
 void test_add_constraint()
