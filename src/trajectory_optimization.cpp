@@ -15,7 +15,8 @@ MISOSProblem::MISOSProblem(
 	num_traj_segments_(num_traj_segments),
 	num_vars_(num_vars),
 	degree_(degree),
-	continuity_degree_(continuity_degree)
+	continuity_degree_(continuity_degree),
+	vehicle_radius_(0.2)
 {
 	assert(continuity_degree_ <= degree_);
 
@@ -37,7 +38,7 @@ MISOSProblem::MISOSProblem(
 
 		// Calculate resulting coefficients for each derivative degree
 		std::vector<coeff_matrix_t> coeffs_dj;
-		for (int der_degree = 1; der_degree < continuity_degree_ + 1; ++der_degree)
+		for (int der_degree = 1; der_degree < degree_ + 1; ++der_degree)
 		{
 			// Calculate symbolic polynomials
 			auto p = c * m_; // vector of same size as problem
@@ -72,7 +73,7 @@ MISOSProblem::MISOSProblem(
 		m_value_t1(d) = m_(d).Evaluate(t1);
 	}
 
-	// Add continuity constraints
+	// Enforce continuity up to required continuity degree
 	// For each polynomial segment
 	for (int j = 0; j < num_traj_segments_ - 1; ++j)
 	{
@@ -80,7 +81,7 @@ MISOSProblem::MISOSProblem(
 		auto right_val = coeffs_[j + 1] * m_value_t0;
 		prog_.AddLinearConstraint(left_val.array() == right_val.array());
 
-		// For each derivative degree
+		// For each derivative degree up to required continuity degree
 		for (int d = 1; d < continuity_degree_ + 1; ++d)
 		{
 			auto left_val = coeffs_d_[j][d - 1] * m_value_t1;
@@ -107,25 +108,63 @@ MISOSProblem::MISOSProblem(
 	}
 	*/
 
-	// Force derivatives at initial and final position to be 0
-	for (int d = 1; d < continuity_degree; ++d)
+	// TODO change
+	// Force first derivatives at initial and final position to be 0
+	for (int d = 1; d <= 1; ++d)
 	{
 		prog_.AddLinearConstraint(
-				(coeffs_d_[0][d] * m_value_t0).array() == Eigen::Vector2d(0,0).array()
+				(coeffs_d_[0][d - 1] * m_value_t0).array() == Eigen::Vector2d(0,0).array()
 			);
 		prog_.AddLinearConstraint(
-				(coeffs_d_[num_traj_segments_ - 1][d] * m_value_t1).array()
+				(coeffs_d_[num_traj_segments_ - 1][d - 1] * m_value_t1).array()
 				== Eigen::Vector2d(0,0).array()
 			);
 	}
 
-	// Add cost to minimize highest derivative order
+	// Add cost to minimize highest derivative order coefficients
 	for (int j = 0; j < num_traj_segments_; ++j)
 	{ 
 		// Remember that highest order derivative only has one coefficient
-		auto quadratic_form = coeffs_d_[j][continuity_degree_ - 1](Eigen::all, 0)
-			.dot(coeffs_d_[j][continuity_degree - 1](Eigen::all, 0));
+		auto quadratic_form = coeffs_d_[j][degree_ - 1](Eigen::all, 0)
+			.dot(coeffs_d_[j][degree_ - 1](Eigen::all, 0));
 		prog_.AddQuadraticCost(quadratic_form);
+	}
+}
+
+// Returns coefficients in t
+Eigen::VectorX<drake::symbolic::Expression> MISOSProblem::get_coefficients(drake::symbolic::Polynomial p)
+{
+	Eigen::VectorX<drake::symbolic::Expression> c(degree_ + 1);
+	auto coeff_map = p.monomial_to_coefficient_map();
+
+	// mm = monomial
+	for (int mm_deg = 0; mm_deg < degree_ + 1; ++mm_deg)
+	{
+		c(mm_deg) = coeff_map[drake::symbolic::Monomial(m_(mm_deg))];
+	}
+
+	return c;
+}
+
+void MISOSProblem::add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, int segment_number)
+{
+	for (int i = 0; i < A.rows(); ++i)
+	{
+		auto ai_transpose = A(i, Eigen::all);
+		auto bi = b(i);
+		drake::symbolic::Polynomial q(
+				bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_, {t_}
+				);
+
+		drake::symbolic::Polynomial sigma_1 = prog_.NewSosPolynomial({t_}, degree_ - 1).first;
+		drake::symbolic::Polynomial sigma_2 = prog_.NewSosPolynomial({t_}, degree_ - 1).first;
+
+		// Add constraints: q(t) = t * sigma1(t) + (1 - t) * sigma2(t)
+		// by setting coefficiants equal
+		prog_.AddLinearConstraint(
+				get_coefficients(q).array() == 
+				get_coefficients(t_ * sigma_1 + sigma_2 - t_ * sigma_2).array()
+				);
 	}
 }
 

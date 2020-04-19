@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[])
 {
-	test_trajopt();
+	test_add_constraint();
 
 	return 0;
 }

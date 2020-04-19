@@ -25,6 +25,7 @@ namespace trajopt
 					);
 
 
+			void add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, int segment_number);
 			void generate();
 			Eigen::VectorX<double> eval(double t);
 
@@ -33,17 +34,18 @@ namespace trajopt
 			const int degree_;
 			const int continuity_degree_;
 			const int num_traj_segments_;
+			const double vehicle_radius_;
 
 			drake::symbolic::Variable t_;
 			std::vector<coeff_matrix_t> coeffs_;
 			std::vector<std::vector<coeff_matrix_t>> coeffs_d_;
 			Eigen::VectorX<drake::symbolic::Expression> m_; // Vector of monomial basis functions
+			drake::solvers::MathematicalProgram prog_;
 
 			drake::solvers::MathematicalProgramResult result_;
 			Eigen::MatrixX<drake::symbolic::Polynomial> polynomials_;
 
-
-			drake::solvers::MathematicalProgram prog_;
+			Eigen::VectorX<drake::symbolic::Expression> get_coefficients(drake::symbolic::Polynomial p);
 	};
 	int factorial(int n);
 	}
