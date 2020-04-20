@@ -13,10 +13,16 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_BUILD_TYPE Debug)
 
 
-# find drake
-find_package(drake CONFIG REQUIRED)
-find_package (Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(Eigen3 REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR})
 find_package(Python3 COMPONENTS Development NumPy)
+
+list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/drake/build/install)
+find_package(drake CONFIG REQUIRED)
+include_directories(${drake_INCLUDE_DIRS})
+
+
+#list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/iris-distro/build/install)
 
 # Installing IRIS:
 #		1. Clone github repo https://github.com/rdeits/iris-distro
@@ -25,6 +31,7 @@ find_package(Python3 COMPONENTS Development NumPy)
 #		4. make
 # Make sure to have Mosek installed, with a valid license
 # The following two lines are required to include IRIS
+#find_package(iris REQUIRED)
 link_directories(/Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/iris-distro/build/install/lib)
 include_directories(/Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/iris-distro/build/install/include)
 
@@ -36,10 +43,12 @@ include_directories(${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 add_executable(${PROJECT_NAME} src/main.cpp)
 target_link_libraries(${PROJECT_NAME} drake::drake trajopt)
 target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
-target_link_libraries(${PROJECT_NAME} iris trajopt tests)
+target_link_libraries(${PROJECT_NAME} iris tests)
+target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
 
 add_library(trajopt src/trajectory_optimization.cpp src/trajopt/PPTrajectory.cpp)
 target_link_libraries(trajopt drake::drake)
+target_link_libraries(trajopt Eigen3::Eigen)
 
 add_library(plotter src/plot/plotter.cpp)
 target_link_libraries(plotter Eigen3::Eigen)
