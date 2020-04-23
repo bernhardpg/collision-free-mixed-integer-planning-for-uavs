@@ -58,6 +58,22 @@ void test_add_constraint()
 	problem.addObstacle(obs.transpose());
 	obstacles.push_back(obs);
 
+	obs << 3,3,
+				 5,3,
+				 5,4,
+				 3,4;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+	/*
+	obs << 0.5,3,
+				 2,3,
+				 2,4,
+				 0.5,4;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+	*/
+
 	// Get convex regions
 
   iris::IRISOptions options;
@@ -65,6 +81,9 @@ void test_add_constraint()
 	seed_points.push_back(Eigen::Vector2d(1,1));
 	seed_points.push_back(Eigen::Vector2d(2.1,4.5));
 	seed_points.push_back(Eigen::Vector2d(3,1));
+	seed_points.push_back(Eigen::Vector2d(2.5,3.5));
+	seed_points.push_back(Eigen::Vector2d(4.5,2.5));
+	//seed_points.push_back(Eigen::Vector2d(0.5,3.5));
 
 	std::vector<iris::Polyhedron> convex_polygons;
 
@@ -96,25 +115,25 @@ void test_add_constraint()
 
 	// Create trajectory
 	int num_vars = 2;
-	int num_traj_segments = 7;
+	int num_traj_segments = 10;
 	int degree = 3;
 	int cont_degree = 2;
 	Eigen::VectorX<double> init_pos(num_vars);
 	init_pos << 1.0, 1.0;
 
 	Eigen::VectorX<double> final_pos(num_vars);
-	final_pos << 3.0, 1.0;
+	final_pos << 4.5, 2.5;
 
 	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
-	traj.add_region_constraint(As[0], bs[0], 0);
-	traj.add_region_constraint(As[0], bs[0], 1);
-	traj.add_region_constraint(As[0], bs[0], 2);
-	traj.add_region_constraint(As[1], bs[1], 3);
-	traj.add_region_constraint(As[1], bs[1], 4);
-	traj.add_region_constraint(As[2], bs[2], 5);
-	traj.add_region_constraint(As[2], bs[2], 6);
+//	traj.add_region_constraint(As[0], bs[0], 0);
+//	traj.add_region_constraint(As[0], bs[0], 1);
+//	traj.add_region_constraint(As[0], bs[0], 2);
+//	traj.add_region_constraint(As[1], bs[1], 3);
+//	traj.add_region_constraint(As[1], bs[1], 4);
+//	traj.add_region_constraint(As[2], bs[2], 5);
+//	traj.add_region_constraint(As[2], bs[2], 6);
 
-	//traj.add_convex_regions(As, bs);
+	traj.add_convex_regions(As, bs);
 
 	traj.generate();
 	//

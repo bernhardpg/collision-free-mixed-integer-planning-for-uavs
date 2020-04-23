@@ -110,16 +110,16 @@ MISOSProblem::MISOSProblem(
 			);
 	}
 
-	auto a = prog_.NewContinuousVariables(num_traj_segments, "a");
-
 	// Add cost to minimize highest derivative order coefficients
+	// Reformulate cost to be linear for correct SDP problem formulation
+	// (Cost is actually quadratic)
+	auto a = prog_.NewContinuousVariables(num_traj_segments, "a");
 	for (int j = 0; j < num_traj_segments_; ++j)
 	{
 		prog_.AddLinearCost(a(j));
 		// Remember that highest order derivative only has one coefficient
 		auto quadratic_form = coeffs_d_[j][degree_ - 1](Eigen::all, 0)
 			.dot(coeffs_d_[j][degree_ - 1](Eigen::all, 0));
-		//prog_.AddQuadraticCost(quadratic_form);
 		prog_.AddLorentzConeConstraint(a(j), quadratic_form);
 	}
 }
@@ -163,26 +163,37 @@ void MISOSProblem::add_convex_regions(
 	}
 }
 
-void MISOSProblem::add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, int segment_number)
+void MISOSProblem::add_region_constraint(int region_number, int segment_number)
 {
-	for (int i = 0; i < A.rows(); ++i)
+
+	for (int i = 0; i < regions_A_[region_number].rows(); ++i)
 	{
-		auto ai_transpose = A(i, Eigen::all);
-		auto bi = b(i);
+		auto ai_transpose = regions_A_[region_number](i, Eigen::all);
+		auto bi = regions_b_[region_number](i);
+
+		// Use big M to only enforce constraints for one region per trajectory segment
 		drake::symbolic::Polynomial q(
-				bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_, {t_}
+				big_M_ * (1 - H_(region_number, segment_number)) +
+				bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_,
+				{t_}
 				);
 
 		drake::symbolic::Polynomial sigma_1;
 		drake::symbolic::Polynomial sigma_2;
 
-		// Add second order cone constraint
+		// Add second order cone constraint for polynomials of degree 3
 		if (degree_ == 3)
 		{
 			coeff_matrix_t sigma_coeffs = prog_.NewContinuousVariables(2, 3, "Beta");
 
-			sigma_1  = drake::symbolic::Polynomial(sigma_coeffs(0, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
-			sigma_2  = drake::symbolic::Polynomial(sigma_coeffs(1, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
+			sigma_1  = drake::symbolic::Polynomial(
+					sigma_coeffs(0, Eigen::all).dot(m_(Eigen::seq(0,2))),
+					{t_}
+					);
+			sigma_2  = drake::symbolic::Polynomial(
+					sigma_coeffs(1, Eigen::all).dot(m_(Eigen::seq(0,2))),
+					{t_}
+					);
 
 			prog_.AddRotatedLorentzConeConstraint(
 					sigma_coeffs(0,0),
@@ -196,10 +207,11 @@ void MISOSProblem::add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, i
 					0.25 * sigma_coeffs(1,1) * sigma_coeffs(1,1)
 					);
 		}
-		// Add SOS constraint
+		// Add SOS constraints for all other degrees
+		// NOTE: Mosek does currently not support MISDP problems,
+		// which MI with SOS constraints will be translated to.
 		else
 		{
-			std::cout << "Adding SOS polynomial constraint" << std::endl;
 			sigma_1 = prog_.NewSosPolynomial(
 					{t_}, degree_ - 1
 					).first;
@@ -212,64 +224,6 @@ void MISOSProblem::add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, i
 		// by setting coefficiants equal
 		prog_.AddLinearConstraint(
 				get_coefficients(q).array() == 
-				get_coefficients(t_ * sigma_1 + sigma_2 - t_ * sigma_2).array()
-				);
-	}
-}
-
-void MISOSProblem::add_region_constraint(int region_number, int segment_number)
-{
-	for (int i = 0; i < regions_A_[region_number].rows(); ++i)
-	{
-		auto ai_transpose = regions_A_[region_number](i, Eigen::all);
-		auto bi = regions_b_[region_number](i);
-		drake::symbolic::Polynomial q(
-				bi + big_M_ * H_(region_number, segment_number)
-				- vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_,
-				{t_}
-				);
-
-		drake::symbolic::Polynomial sigma_1;
-		drake::symbolic::Polynomial sigma_2;
-
-		// Add second order cone constraint
-		if (degree_ == 3)
-		{
-			std::cout << "Adding SOCP polynomial constraint" << std::endl;
-			coeff_matrix_t sigma_coeffs = prog_.NewContinuousVariables(2, 3, "Beta");
-
-			sigma_1  = drake::symbolic::Polynomial(sigma_coeffs(0, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
-			sigma_2  = drake::symbolic::Polynomial(sigma_coeffs(1, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
-
-			Eigen::VectorX<drake::symbolic::Expression> v(3);
-			v << sigma_coeffs(0,0) + sigma_coeffs(0,2),
-					 0.5 * sigma_coeffs(0,1),
-					sigma_coeffs(0,0) - sigma_coeffs(0,2);
-			prog_.AddLorentzConeConstraint(v);
-
-			Eigen::VectorX<drake::symbolic::Expression> v2(3);
-			v2 << sigma_coeffs(1,0) + sigma_coeffs(1,2),
-					 0.5 * sigma_coeffs(1,1),
-					sigma_coeffs(1,0) - sigma_coeffs(1,2);
-			prog_.AddLorentzConeConstraint(v2);
-
-		}
-		// Add SOS constraint
-		else
-		{
-			std::cout << "Adding SOS polynomial constraint" << std::endl;
-			sigma_1 = prog_.NewSosPolynomial(
-					{t_}, degree_ - 1
-					).first;
-			sigma_2 = prog_.NewSosPolynomial(
-					{t_}, degree_ - 1
-					).first;
-		}
-
-		// Add constraints: q(t) = t * sigma1(t) + (1 - t) * sigma2(t)
-		// by setting coefficients equal
-		prog_.AddLinearConstraint(
-				get_coefficients(q).array() ==
 				get_coefficients(t_ * sigma_1 + sigma_2 - t_ * sigma_2).array()
 				);
 	}
