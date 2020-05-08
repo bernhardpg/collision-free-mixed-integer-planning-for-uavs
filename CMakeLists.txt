@@ -12,10 +12,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # debug
 set(CMAKE_BUILD_TYPE Debug)
 
-
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 find_package(Python3 COMPONENTS Development NumPy)
+
+find_package(gflags REQUIRED) # Google flags
+include_directories(${gflags_INCLUDE_DIRS})
 
 list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/drake/build/install)
 find_package(drake CONFIG REQUIRED)
@@ -69,3 +71,4 @@ target_link_libraries(tests plotter)
 add_library(simulate src/simulate/simulate.cpp)
 target_link_libraries(simulate drake::drake)
 target_link_libraries(simulate Eigen3::Eigen)
+target_link_libraries(simulate gflags)
