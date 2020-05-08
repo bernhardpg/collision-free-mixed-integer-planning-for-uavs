@@ -72,3 +72,7 @@ add_library(simulate src/simulate/simulate.cpp)
 target_link_libraries(simulate drake::drake)
 target_link_libraries(simulate Eigen3::Eigen)
 target_link_libraries(simulate gflags)
+target_link_libraries(simulate geometry)
+
+add_library(geometry src/tools/geometry.cpp)
+target_link_libraries(geometry drake::drake)

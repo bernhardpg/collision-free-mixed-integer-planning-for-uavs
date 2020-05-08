@@ -22,7 +22,7 @@ void simulate()
 	double arm_length = 0.2;
 
 	// **********
-	// Build model diagram 
+	// Build diagram 
 	// **********
 	
 	DRAKE_DEMAND(FLAGS_simulation_time > 0);
@@ -33,11 +33,11 @@ void simulate()
         drake::multibody::AddMultibodyPlantSceneGraph(&builder, 0.0);
 
 	// Add obstacles from file
-	drake::multibody::Parser parser(&plant, &scene_graph);
+	drake::multibody::Parser parser(&plant);
 	auto obstacles = parser.AddModelFromFile("obstacles.urdf");
-        //drake::FindResourceOrThrow("drake/examples/quadrotor/office.urdf"));
 	plant.WeldFrames(
 			plant.world_frame(), plant.GetFrameByName("ground", obstacles));
+	plant.Finalize();
 
 	// Load quadrotor model
 	auto quadrotor_plant = builder
@@ -61,12 +61,29 @@ void simulate()
 	builder.Connect(quadrotor_plant->get_output_port(0), lqr_controller->get_input_port());
   builder.Connect(lqr_controller->get_output_port(), quadrotor_plant->get_input_port(0));
 
-	plant.Finalize();
 	// Connect to 3D visualization 
 	drake::geometry::ConnectDrakeVisualizer(&builder, scene_graph);
 	//drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
 
 	auto diagram = builder.Build();
+	//auto plant_context = &diagram->GetMutableSubsystemContext(plant, diagram_context.get());
+
+	// *****
+	// Get obstacle vertices 
+	// *****
+
+	// Get query_object to pass geometry queries to (needs root context from diagram)
+	const auto diagram_context = diagram->CreateDefaultContext();
+	const auto& query_object =
+			scene_graph.get_query_output_port()
+			.Eval<drake::geometry::QueryObject<double>>(
+						scene_graph.GetMyContextFromRoot(*diagram_context)
+					);
+	const auto& inspector = scene_graph.model_inspector();
+
+	auto obstacle_geometries = geometry::getObstacleGeometries(&plant);
+	auto obstacle_vertices = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
+
 
 	// ********
 	// Simulate

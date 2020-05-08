@@ -14,8 +14,12 @@
 #include "drake/multibody/plant/multibody_plant.h"
 #include "drake/multibody/plant/contact_results_to_lcm.h"
 #include "drake/geometry/geometry_visualization.h"
+#include <drake/geometry/scene_graph_inspector.h>
+#include <drake/math/rigid_transform.h>
 
 #include "drake/examples/quadrotor/quadrotor_plant.h"
 #include "drake/examples/quadrotor/quadrotor_geometry.h"
+
+#include "tools/geometry.h"
 
 void simulate();

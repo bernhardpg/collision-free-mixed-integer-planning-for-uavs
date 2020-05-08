@@ -18,6 +18,84 @@ void test_trajopt()
 	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
 }
 
+
+void test_iris3d()
+{
+	// Create bounding box
+	Eigen::MatrixXd A_bounds(6,3);
+	A_bounds << -1, 0, 0,
+							0, -1, 0,
+							0, 0, -1,
+							1, 0, 0,
+							0, 1, 0,
+							0, 0, 1;
+
+	Eigen::VectorXd b_bounds(6);
+	b_bounds << 0, 0, 0, 5, 5, 2;
+	iris::Polyhedron bounds(A_bounds,b_bounds);
+
+	// Construct 2D test environment
+	iris::IRISProblem problem(3);
+	problem.setBounds(bounds);
+
+
+	std::vector<Eigen::MatrixXd> obstacles;
+	Eigen::MatrixXd obs(8,3);
+	obs << 4, 0, 0,
+				 5, 2, 0, 
+				 4, 2, 0,
+				 5, 0, 0,
+				 5, 0, 1,
+				 4, 2, 1,
+				 5, 2, 1, 
+				 4, 0, 0;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+	obs << -1, 0, 0,
+				 -1, 2, 0,
+				  0, 2, 0,
+					0.2, 0, 0,
+					0.2, 0, 1,
+				  0, 2, 1,
+				 -1, 2, 1,
+				 -1, 0, 1;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+	obs << 2, 0, 0,
+				 2, 4, 0,
+				 2.2, 4, 0,
+				 2.2, 0, 0,
+				 2.2, 0, 1,
+				 2.2, 4, 1,
+				 2, 4, 1,
+				 2, 0, 1;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+  iris::IRISOptions options;
+	std::vector<Eigen::Vector3d> seed_points;
+	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
+	seed_points.push_back(Eigen::Vector3d(2.1,4.5, 0.5));
+	seed_points.push_back(Eigen::Vector3d(3,1, 0.5));
+	seed_points.push_back(Eigen::Vector3d(2.5,3.5,0.5));
+	seed_points.push_back(Eigen::Vector3d(4.5,2.5,0.5));
+
+	// Get convex regions
+	std::vector<iris::Polyhedron> convex_polygons;
+	for (int i = 0; i < 1; ++i)
+	{
+		problem.setSeedPoint(seed_points[i]);
+		iris::IRISRegion region = inflate_region(problem, options);
+		convex_polygons.push_back(region.getPolyhedron());
+		auto vertices = region.getPolyhedron().generatorPoints();
+		for (int i = 0; i < vertices.size(); ++i)
+		{
+			std::cout << vertices[i] << std::endl << std::endl;
+		}
+	}
+}
+
 void test_add_constraint()
 {
 	// Create bounding box
