@@ -38,8 +38,8 @@ void test_add_constraint()
 	Eigen::MatrixXd obs(4,2);
 
 	obs << 4, 0,
-				 4, 2,
 				 5, 2,
+				 4, 2,
 				 5, 0;
 	problem.addObstacle(obs.transpose());
 	obstacles.push_back(obs);

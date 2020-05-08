@@ -34,10 +34,10 @@ void simulate()
 
 	// Add obstacles from file
 	drake::multibody::Parser parser(&plant, &scene_graph);
-	auto obstacles = parser.AddModelFromFile(
-        drake::FindResourceOrThrow("drake/examples/quadrotor/office.urdf"));
+	auto obstacles = parser.AddModelFromFile("obstacles.urdf");
+        //drake::FindResourceOrThrow("drake/examples/quadrotor/office.urdf"));
 	plant.WeldFrames(
-			plant.world_frame(), plant.GetFrameByName("wall1", obstacles));
+			plant.world_frame(), plant.GetFrameByName("ground", obstacles));
 
 	// Load quadrotor model
 	auto quadrotor_plant = builder
@@ -50,7 +50,7 @@ void simulate()
       &builder, quadrotor_plant->get_output_port(0), &scene_graph);
 
 	// Create LQR controller
-  const Eigen::Vector3d kNominalPosition{((Eigen::Vector3d() << 3.0, -2.0, 1.0).
+  const Eigen::Vector3d kNominalPosition{((Eigen::Vector3d() << 0.0, 0.0, 1.0).
       finished())};
 	auto lqr_controller = builder.AddSystem(
 			drake::examples::quadrotor::StabilizingLQRController(quadrotor_plant, kNominalPosition)
@@ -64,23 +64,20 @@ void simulate()
 	plant.Finalize();
 	// Connect to 3D visualization 
 	drake::geometry::ConnectDrakeVisualizer(&builder, scene_graph);
-	drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
+	//drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
 
 	auto diagram = builder.Build();
-
 
 	// ********
 	// Simulate
 	// ********
-	
-
 
 	drake::systems::Simulator<double> simulator(*diagram);
 
 	// Initial conditions
 	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
 	//x0 = Eigen::VectorX<double>::Random(12);
-	x0 << 0,1,2,
+	x0 << 0,0,2,
 				0,0,0,
 				0,0,0,
 				0,0,0;
