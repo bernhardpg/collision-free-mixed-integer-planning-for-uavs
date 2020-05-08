@@ -112,7 +112,6 @@ void test_add_constraint()
 
 	plot_obstacles(obstacles);
 
-
 	// Create trajectory
 	int num_vars = 2;
 	int num_traj_segments = 10;

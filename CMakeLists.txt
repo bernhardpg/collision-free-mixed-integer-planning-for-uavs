@@ -21,7 +21,6 @@ list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8
 find_package(drake CONFIG REQUIRED)
 include_directories(${drake_INCLUDE_DIRS})
 
-
 #list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/iris-distro/build/install)
 
 # Installing IRIS:
@@ -41,10 +40,14 @@ include_directories(${Python3_INCLUDE_DIRS} ${Python3_NumPy_INCLUDE_DIRS})
 
 # add executables
 add_executable(${PROJECT_NAME} src/main.cpp)
-target_link_libraries(${PROJECT_NAME} drake::drake trajopt)
-target_link_libraries(${PROJECT_NAME} Python3::Python Python3::NumPy)
-target_link_libraries(${PROJECT_NAME} iris tests)
+target_link_libraries(${PROJECT_NAME} drake::drake)
 target_link_libraries(${PROJECT_NAME} Eigen3::Eigen)
+target_link_libraries(${PROJECT_NAME} Python3::Python)
+target_link_libraries(${PROJECT_NAME} Python3::NumPy)
+target_link_libraries(${PROJECT_NAME} iris)
+target_link_libraries(${PROJECT_NAME} tests)
+target_link_libraries(${PROJECT_NAME} trajopt)
+target_link_libraries(${PROJECT_NAME} simulate)
 
 add_library(trajopt src/trajectory_optimization.cpp src/trajopt/PPTrajectory.cpp)
 target_link_libraries(trajopt drake::drake)
@@ -63,3 +66,6 @@ target_link_libraries(tests Eigen3::Eigen)
 target_link_libraries(tests trajopt)
 target_link_libraries(tests plotter)
 
+add_library(simulate src/simulate/simulate.cpp)
+target_link_libraries(simulate drake::drake)
+target_link_libraries(simulate Eigen3::Eigen)
