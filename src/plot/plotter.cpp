@@ -83,6 +83,13 @@ void plot_convex_hull(std::vector<Eigen::VectorXd> points)
 	plot_region(convex_hull);
 }
 
+void plot_convex_hull_show(std::vector<Eigen::VectorXd> points)
+{
+	auto convex_hull = makeConvexHull(points);
+	plot_region(convex_hull);
+	plt::show();
+}
+
 void plot_region(std::vector<Eigen::VectorXd> points)
 {
 	std::vector<double> x;
@@ -121,3 +128,21 @@ void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles)
 }
 
 
+void plot_convex_regions_footprint(std::vector<iris::Polyhedron> convex_polygons)
+{
+	// Plot convex regions
+	for (int i = 0; i < convex_polygons.size(); ++i)
+	{
+		std::vector<Eigen::VectorXd> ground_points;
+		auto temp = convex_polygons[i].generatorPoints();
+		for (auto point : temp)
+		{
+			if (point(2) == 0.0)
+				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
+		}
+		if (i == convex_polygons.size() - 1)
+			plot_convex_hull_show(ground_points);
+		else
+			plot_convex_hull(ground_points);
+	}
+}

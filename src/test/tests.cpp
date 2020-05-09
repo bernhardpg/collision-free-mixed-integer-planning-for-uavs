@@ -91,12 +91,12 @@ void test_iris3d()
 		auto vertices = region.getPolyhedron().generatorPoints();
 		for (int j = 0; j < vertices.size(); ++j)
 		{
-			std::cout << vertices[i] << std::endl << std::endl;
+			std::cout << vertices[j] << std::endl << std::endl;
 		}
 	}
 }
 
-void test_add_constraint()
+void test_trajectory_with_iris()
 {
 	// Create bounding box
 	Eigen::MatrixXd A_bounds(4,2);

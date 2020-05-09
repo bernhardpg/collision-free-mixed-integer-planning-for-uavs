@@ -102,36 +102,66 @@ void simulate()
 
 	// Initialize IRIS problem
 	iris::IRISProblem iris_problem(3);
+  iris::IRISOptions options;
 	iris_problem.setBounds(bounds);
 
 	for (auto obstacle : obstacles)
 		iris_problem.addObstacle(obstacle);
 
-  iris::IRISOptions options;
+	// Add seedpoints
 	std::vector<Eigen::Vector3d> seed_points;
 	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
 	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
 	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
 
+	// Obtain convex regions
 	std::vector<iris::Polyhedron> convex_polygons;
 	for (auto seed_point : seed_points)
 	{
 		iris_problem.setSeedPoint(seed_point);
 		iris::IRISRegion region = inflate_region(iris_problem, options);
 		convex_polygons.push_back(region.getPolyhedron());
-
-		auto vertices = region.getPolyhedron().generatorPoints();
-		for (int i = 0; i < vertices.size(); ++i)
-		{
-			std::cout << vertices[i] << std::endl << std::endl;
-		}
 	}
 
+	plot_convex_regions_footprint(convex_polygons);
+
+	std::vector<Eigen::MatrixXd> obstacle_As;
+	std::vector<Eigen::VectorXd> obstacle_bs;
+	for (int i = 0; i < convex_polygons.size(); ++i)
+	{
+		// Matrix containing one convex region
+		obstacle_As.push_back(convex_polygons[i].getA());
+		obstacle_bs.push_back(convex_polygons[i].getB());
+	}
 
 	// ********************
 	// Calculate trajectory
 	// ********************
 
+	int num_vars = 3;
+	int num_traj_segments = 8;
+	int degree = 3;
+	int cont_degree = 2;
+	Eigen::VectorX<double> init_pos(num_vars);
+	init_pos << 0.0, 0.0, 1.0;
+
+	Eigen::VectorX<double> final_pos(num_vars);
+	final_pos << 0.0, 6.5, 1.0;
+
+	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
+
+	traj.add_region_constraint(obstacle_As[0], obstacle_bs[0], 0);
+	traj.add_region_constraint(obstacle_As[0], obstacle_bs[0], 1);
+	traj.add_region_constraint(obstacle_As[1], obstacle_bs[1], 2);
+	traj.add_region_constraint(obstacle_As[1], obstacle_bs[1], 3);
+	traj.add_region_constraint(obstacle_As[2], obstacle_bs[2], 4);
+	traj.add_region_constraint(obstacle_As[2], obstacle_bs[2], 5);
+	traj.add_region_constraint(obstacle_As[3], obstacle_bs[3], 6);
+	traj.add_region_constraint(obstacle_As[3], obstacle_bs[3], 7);
+
+	traj.generate();
+	return;
 
 	// ********
 	// Simulate
