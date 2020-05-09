@@ -51,6 +51,7 @@ target_link_libraries(${PROJECT_NAME} tests)
 target_link_libraries(${PROJECT_NAME} trajopt)
 target_link_libraries(${PROJECT_NAME} simulate)
 
+# TODO remove
 add_executable(test_visualizer src/test_visualize.cpp)
 target_link_libraries(test_visualizer drake::drake)
 target_link_libraries(test_visualizer gflags)
@@ -77,6 +78,12 @@ target_link_libraries(simulate drake::drake)
 target_link_libraries(simulate Eigen3::Eigen)
 target_link_libraries(simulate gflags)
 target_link_libraries(simulate geometry)
+target_link_libraries(simulate publish_trajectory)
 
 add_library(geometry src/tools/geometry.cpp)
 target_link_libraries(geometry drake::drake)
+
+add_library(publish_trajectory src/simulate/publish_trajectory.cpp)
+target_link_libraries(publish_trajectory drake::drake)
+target_link_libraries(publish_trajectory Eigen3::Eigen)
+target_link_libraries(publish_trajectory gflags)

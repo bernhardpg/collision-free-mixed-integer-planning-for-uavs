@@ -127,6 +127,24 @@ void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles)
 	}
 }
 
+// TODO
+void plot_obstacles_footprints(std::vector<Eigen::Matrix3Xd> convex_polygons)
+{
+	// Plot convex regions
+	for (int i = 0; i < convex_polygons.size(); ++i)
+	{
+		std::vector<Eigen::VectorXd> ground_points;
+		for (auto point : convex_polygons)
+		{
+			if (point(2) == 0.0)
+				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
+		}
+		if (i == convex_polygons.size() - 1)
+			plot_convex_hull_show(ground_points);
+		else
+			plot_convex_hull(ground_points);
+	}
+}
 
 void plot_convex_regions_footprint(std::vector<iris::Polyhedron> convex_polygons)
 {

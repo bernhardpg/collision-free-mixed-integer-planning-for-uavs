@@ -38,6 +38,7 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	std::vector<Eigen::Vector3d> seed_points;
 	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
 	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(-2,3.5,0.5));
 	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
 	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
 
@@ -50,7 +51,9 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 		convex_polygons.push_back(region.getPolyhedron());
 	}
 
-	//plot_convex_regions_footprint(convex_polygons);
+	// TODO plot obstacle footprints
+	//plot_convex_regions_footprint(obstacles);
+	plot_convex_regions_footprint(convex_polygons);
 
 	std::vector<Eigen::MatrixXd> obstacle_As;
 	std::vector<Eigen::VectorXd> obstacle_bs;
@@ -91,19 +94,23 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	traj.add_safe_region_assignments(safe_region_assignments);
 	traj.generate();
 	std::cout << "Found 5th order trajectory" << std::endl;
-	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
+//	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
 
 
-//	traj.add_region_constraint(0, 0, true);
-//	traj.add_region_constraint(0, 1, true);
-//	traj.add_region_constraint(1, 2, true);
-//	traj.add_region_constraint(1, 3, true);
-//	traj.add_region_constraint(2, 4, true);
-//	traj.add_region_constraint(2, 5, true);
-//	traj.add_region_constraint(3, 6, true);
-//	traj.add_region_constraint(3, 7, true);
+	// TODO cleanup
+	// Visualize trajectory
 
-	return;
+  std::vector<std::string> names;
+  std::vector<Eigen::Isometry3d> poses;
+  for (double t = 0.0; t < (double)num_traj_segments; t += 0.1) {
+    names.push_back("X" + std::to_string(int(t * 100)));
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation() = traj.eval(t);
+    poses.push_back(pose);
+  }
+	drake::lcm::DrakeLcm lcm;
+  PublishFramesToLcm("DRAKE_DRAW_TRAJECTORY", poses, names, &lcm);
+
 }
 
 void simulate()
@@ -187,8 +194,7 @@ void simulate()
 	// ********
 
 	find_trajectory(obstacles);
-	return;
-
+	
 	// ********
 	// Simulate
 	// ********

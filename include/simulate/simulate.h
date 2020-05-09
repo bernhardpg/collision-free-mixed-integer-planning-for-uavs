@@ -21,10 +21,10 @@
 #include "drake/examples/quadrotor/quadrotor_geometry.h"
 
 #include "tools/geometry.h"
-
 #include "iris/iris.h"
 #include "trajopt/MISOSProblem.h"
 #include "plot/plotter.h"
+#include "simulate/publish_trajectory.h"
 
 void simulate();
 void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles);
