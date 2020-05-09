@@ -22,4 +22,6 @@
 
 #include "tools/geometry.h"
 
+#include "iris/iris.h"
+
 void simulate();

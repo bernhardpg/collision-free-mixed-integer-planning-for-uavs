@@ -34,9 +34,9 @@ void simulate()
 
 	// Add obstacles from file
 	drake::multibody::Parser parser(&plant);
-	auto obstacles = parser.AddModelFromFile("obstacles.urdf");
+	auto obstacle_model = parser.AddModelFromFile("obstacles.urdf");
 	plant.WeldFrames(
-			plant.world_frame(), plant.GetFrameByName("ground", obstacles));
+			plant.world_frame(), plant.GetFrameByName("ground", obstacle_model));
 	plant.Finalize();
 
 	// Load quadrotor model
@@ -45,7 +45,6 @@ void simulate()
 				m, arm_length, inertia, 1, 0.0245
 				);
 	quadrotor_plant->set_name("quadrotor");
-	// Add quadrotor geometry
 	drake::examples::quadrotor::QuadrotorGeometry::AddToBuilder(
       &builder, quadrotor_plant->get_output_port(0), &scene_graph);
 
@@ -66,7 +65,6 @@ void simulate()
 	//drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
 
 	auto diagram = builder.Build();
-	//auto plant_context = &diagram->GetMutableSubsystemContext(plant, diagram_context.get());
 
 	// *****
 	// Get obstacle vertices 
@@ -82,7 +80,57 @@ void simulate()
 	const auto& inspector = scene_graph.model_inspector();
 
 	auto obstacle_geometries = geometry::getObstacleGeometries(&plant);
-	auto obstacle_vertices = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
+	std::vector<Eigen::Matrix3Xd> obstacles = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
+
+	// ****
+	// Get convex regions using IRIS
+	// ****
+
+	// Create bounding box
+	// Matches 'ground' object in obstacles.urdf
+	Eigen::MatrixXd A_bounds(6,3);
+	A_bounds << -1, 0, 0,
+							0, -1, 0,
+							0, 0, -1,
+							1, 0, 0,
+							0, 1, 0,
+							0, 0, 1;
+
+	Eigen::VectorXd b_bounds(6);
+	b_bounds << 5, 2.5, 0, 5, 12.5, 2;
+	iris::Polyhedron bounds(A_bounds,b_bounds);
+
+	// Initialize IRIS problem
+	iris::IRISProblem iris_problem(3);
+	iris_problem.setBounds(bounds);
+
+	for (auto obstacle : obstacles)
+		iris_problem.addObstacle(obstacle);
+
+  iris::IRISOptions options;
+	std::vector<Eigen::Vector3d> seed_points;
+	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
+	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
+
+	std::vector<iris::Polyhedron> convex_polygons;
+	for (auto seed_point : seed_points)
+	{
+		iris_problem.setSeedPoint(seed_point);
+		iris::IRISRegion region = inflate_region(iris_problem, options);
+		convex_polygons.push_back(region.getPolyhedron());
+
+		auto vertices = region.getPolyhedron().generatorPoints();
+		for (int i = 0; i < vertices.size(); ++i)
+		{
+			std::cout << vertices[i] << std::endl << std::endl;
+		}
+	}
+
+
+	// ********************
+	// Calculate trajectory
+	// ********************
 
 
 	// ********
@@ -114,45 +162,5 @@ void simulate()
 	simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
 	simulator.AdvanceTo(FLAGS_simulation_time); // seconds
 
-/*
-
-
-	auto diagram = builder.Build();*/
-
-
 	//auto logger = builder.AddSystem<drake::systems::SignalLogger<double>>(4);
-
-	// Connect controller and quadrotor
-	//builder.Connect(quadrotor->get_output_port(0), controller->get_input_port());
-	//builder.Connect(controller->get_output_port(), logger->get_input_port());
-
-
-	// *********
-	// Simulate
-	// *********
-
-	/*// Initial conditions
-	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
-	x0 = Eigen::VectorX<double>::Random(12);
-
-	// Simulation
-	drake::systems::Simulator<double> simulator(*diagram);
-	auto diagram_context = diagram->CreateDefaultContext();
-
-	simulator.get_mutable_context().get_mutable_continuous_state_vector().SetFromVector(x0);
-
-	simulator.Initialize();
-	simulator.set_target_realtime_rate(1.0);
-
-	// The following accuracy is necessary for the example to satisfy its
-	// ending state tolerances.
-	simulator.get_mutable_integrator().set_target_accuracy(5e-5);
-	simulator.AdvanceTo(7.0); // seconds
-
-  // Goal state verification.
-	const drake::systems::Context<double>& context = simulator.get_context();
-	const drake::systems::ContinuousState<double>& state = context.get_continuous_state();
-	const Eigen::VectorX<double>& position_vector = state.CopyToVector();
-	*/
-
 }

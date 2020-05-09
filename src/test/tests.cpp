@@ -89,7 +89,7 @@ void test_iris3d()
 		iris::IRISRegion region = inflate_region(problem, options);
 		convex_polygons.push_back(region.getPolyhedron());
 		auto vertices = region.getPolyhedron().generatorPoints();
-		for (int i = 0; i < vertices.size(); ++i)
+		for (int j = 0; j < vertices.size(); ++j)
 		{
 			std::cout << vertices[i] << std::endl << std::endl;
 		}
