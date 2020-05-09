@@ -65,7 +65,9 @@ namespace trajopt
 			drake::solvers::MathematicalProgramResult result_;
 			Eigen::MatrixX<drake::symbolic::Polynomial> polynomials_;
 
-			Eigen::VectorX<drake::symbolic::Expression> get_coefficients(drake::symbolic::Polynomial p);
+			Eigen::VectorX<drake::symbolic::Expression> get_coefficients_in_t(drake::symbolic::Polynomial p);
+
+			void generate_polynomials();
 	};
 	int factorial(int n);
 	}

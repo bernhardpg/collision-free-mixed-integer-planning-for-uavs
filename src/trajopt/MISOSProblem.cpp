@@ -123,7 +123,7 @@ MISOSProblem::MISOSProblem(
 }
 
 // Returns coefficients in t
-Eigen::VectorX<drake::symbolic::Expression> MISOSProblem::get_coefficients(drake::symbolic::Polynomial p)
+Eigen::VectorX<drake::symbolic::Expression> MISOSProblem::get_coefficients_in_t(drake::symbolic::Polynomial p)
 {
 	Eigen::VectorX<drake::symbolic::Expression> c(degree_ + 1);
 	auto coeff_map = p.monomial_to_coefficient_map();
@@ -150,12 +150,14 @@ void MISOSProblem::add_convex_regions(
 void MISOSProblem::create_region_binary_variables()
 {
 	H_ = prog_.NewBinaryVariables(num_regions_, num_traj_segments_, "H");
+
 	// Ensure that each traj segment is strictly within one region
 	for (int j = 0; j < num_traj_segments_; ++j)
 	{
 		prog_.AddLinearConstraint(H_(Eigen::all, j).sum() == 1);
 	}
 
+	// Add one constraint for each combination of region and segment
 	for (int j = 0; j < num_traj_segments_; ++j)
 	{
 		for (int r = 0; r < num_regions_; ++r)
@@ -239,8 +241,8 @@ void MISOSProblem::add_region_constraint(
 		// Add constraints: q(t) = t * sigma1(t) + (1 - t) * sigma2(t)
 		// by setting coefficiants equal
 		prog_.AddLinearConstraint(
-				get_coefficients(q).array() ==
-				get_coefficients(t_ * sigma_1 + sigma_2 - t_ * sigma_2).array()
+				get_coefficients_in_t(q).array() ==
+				get_coefficients_in_t(t_ * sigma_1 + sigma_2 - t_ * sigma_2).array()
 				);
 	}
 }
@@ -256,13 +258,11 @@ void MISOSProblem::generate()
 	std::cout << "Solver details: rescode: \n" << details.rescode << std::endl;
 	std::cout << "Solver details: solution_status: \n" << details.solution_status << std::endl;
 
-	auto inf_const = drake::solvers::GetInfeasibleConstraints(prog_, result_);
-	std::cout << "Num inf consts: " << inf_const.size() << std::endl;
-	for (auto i : inf_const)
-	{
-		std::cout << "Infeasible constraint: " << i << std::endl;
-	}
+	generate_polynomials();
+}
 
+void MISOSProblem::generate_polynomials()
+{
 	polynomials_.resize(num_vars_, num_traj_segments_);
 	for (int j = 0; j < num_traj_segments_; ++j)
 	{
