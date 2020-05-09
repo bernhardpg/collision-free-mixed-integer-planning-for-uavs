@@ -1,5 +1,129 @@
 #include "test/tests.h"
 
+void test_trajectory_socp_fix_mi_variables()
+{
+	// Create bounding box
+	Eigen::MatrixXd A_bounds(4,2);
+	A_bounds << -1, 0,
+				0, -1,
+				1, 0,
+				0, 1;
+	Eigen::VectorXd b_bounds(4);
+	b_bounds << 2, 0, 5, 5;
+	iris::Polyhedron bounds(A_bounds,b_bounds);
+
+	// Construct 2D test environment
+	iris::IRISProblem problem(2);
+	problem.setBounds(bounds);
+
+	std::vector<Eigen::MatrixXd> obstacles;
+	Eigen::MatrixXd obs(4,2);
+
+	obs << 4, 0,
+				 5, 2,
+				 4, 2,
+				 5, 0;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+	obs << -1, 0,
+				 -1, 2,
+				  0, 2,
+					0.2, 0;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+	obs << 2, 0,
+				 2, 4,
+				 2.2, 4,
+				 2.2, 0;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+	obs << 3,3,
+				 5,3,
+				 5,4,
+				 3,4;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+
+	/*
+	obs << 0.5,3,
+				 2,3,
+				 2,4,
+				 0.5,4;
+	problem.addObstacle(obs.transpose());
+	obstacles.push_back(obs);
+	*/
+
+	// Get convex regions
+
+  iris::IRISOptions options;
+	std::vector<Eigen::Vector2d> seed_points;
+	seed_points.push_back(Eigen::Vector2d(1,1));
+	seed_points.push_back(Eigen::Vector2d(2.1,4.5));
+	seed_points.push_back(Eigen::Vector2d(2.5,3.5));
+	seed_points.push_back(Eigen::Vector2d(4.5,2.5));
+	//seed_points.push_back(Eigen::Vector2d(0.5,3.5));
+
+	std::vector<iris::Polyhedron> convex_polygons;
+
+	for (int i = 0; i < seed_points.size(); ++i)
+	{
+		problem.setSeedPoint(seed_points[i]);
+		iris::IRISRegion region = inflate_region(problem, options);
+		convex_polygons.push_back(region.getPolyhedron());
+	}
+
+	std::vector<Eigen::MatrixXd> As;
+	std::vector<Eigen::VectorXd> bs;
+	for (int i = 0; i < convex_polygons.size(); ++i)
+	{
+		// Matrix containing one convex region
+		As.push_back(convex_polygons[i].getA());
+		bs.push_back(convex_polygons[i].getB());
+	}
+
+	// Plot convex regions
+	for (int i = 0; i < convex_polygons.size(); ++i)
+	{
+		auto points = convex_polygons[i].generatorPoints();
+		plot_convex_hull(points);
+	}
+
+	plot_obstacles(obstacles);
+
+	// Create trajectory with degree 3 for SOCP constraints
+	int num_vars = 2;
+	int num_traj_segments = 8;
+	int degree = 3;
+	int cont_degree = 2;
+	Eigen::VectorX<double> init_pos(num_vars);
+	init_pos << 1.0, 1.0;
+
+	Eigen::VectorX<double> final_pos(num_vars);
+	final_pos << 4.5, 2.5;
+
+	auto traj_3rd_deg = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
+	traj_3rd_deg.add_convex_regions(As, bs);
+	traj_3rd_deg.create_region_binary_variables();
+	traj_3rd_deg.generate();
+	Eigen::MatrixX<int> safe_region_assignments = traj_3rd_deg.get_region_assignments();
+	std::cout << "Found 3rd order" << std::endl;
+
+	// Create trajectory with degree 5 with fixed region constraints
+	degree = 5;
+	cont_degree = 4;
+
+	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
+	traj.add_convex_regions(As, bs);
+	traj.add_safe_region_assignments(safe_region_assignments);
+	traj.generate();
+	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
+	std::cout << "Found 5th order" << std::endl;
+}
+
+
 void test_trajopt()
 {
 	int num_vars = 2;
@@ -203,17 +327,17 @@ void test_trajectory_with_iris()
 	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
 
 	traj.add_convex_regions(As, bs);
-	//traj.create_region_binary_variables();
-	traj.add_region_constraint(0, 0, true);
-	traj.add_region_constraint(0, 1, true);
-	traj.add_region_constraint(1, 2, true);
-	traj.add_region_constraint(1, 3, true);
-	traj.add_region_constraint(2, 4, true);
-	traj.add_region_constraint(2, 5, true);
-	traj.add_region_constraint(3, 6, true);
-	traj.add_region_constraint(3, 7, true);
+	traj.create_region_binary_variables();
+	//traj.add_region_constraint(0, 0, true);
+	//traj.add_region_constraint(0, 1, true);
+	//traj.add_region_constraint(1, 2, true);
+	//traj.add_region_constraint(1, 3, true);
+	//traj.add_region_constraint(2, 4, true);
+	//traj.add_region_constraint(2, 5, true);
+	//traj.add_region_constraint(3, 6, true);
+	//traj.add_region_constraint(3, 7, true);
 	traj.generate();
-	//
+
 	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
 }
 

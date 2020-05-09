@@ -3,7 +3,7 @@
 
 int main(int argc, char* argv[])
 {
-	test_trajectory_with_iris();
+	test_trajectory_socp_fix_mi_variables();
 	//simulate();
 	//test_iris3d();
 

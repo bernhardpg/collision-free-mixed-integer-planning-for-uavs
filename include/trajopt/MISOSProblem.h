@@ -34,14 +34,17 @@ namespace trajopt
 			void add_region_constraint(
 					int region_number, int segment_number, bool always_enforce
 					);
+			void add_safe_region_assignments(
+					Eigen::MatrixX<int> 
+					);
 			void add_convex_regions(
 					std::vector<Eigen::MatrixX<double>> As,
 					std::vector<Eigen::VectorX<double>> bs
 					);
 			void create_region_binary_variables();
 			void generate();
+			Eigen::MatrixX<int> get_region_assignments();
 			Eigen::VectorX<double> eval(double t);
-
 		private:
 			const int num_vars_;
 			const int degree_;
@@ -49,16 +52,17 @@ namespace trajopt
 			const int num_traj_segments_;
 			int num_regions_;
 			const double vehicle_radius_;
-			const double big_M_ = 5; // TODO set arbitrarily
+			const double big_M_ = 10; // TODO just set arbitrary: set better?
 
 			std::vector<Eigen::MatrixX<double>> regions_A_;
 			std::vector<Eigen::VectorX<double>> regions_b_;
 
-			Eigen::VectorX<drake::symbolic::Expression> m_; // Vector of monomial basis functions
-			Eigen::MatrixX<drake::symbolic::Expression> H_;
+			Eigen::VectorX<drake::symbolic::Expression> m_;
+			// Vector of monomial basis functions
 
 			drake::symbolic::Variable t_;
 			std::vector<coeff_matrix_t> coeffs_;
+			Eigen::MatrixX<drake::symbolic::Expression> H_;
 			std::vector<std::vector<coeff_matrix_t>> coeffs_d_;
 			drake::solvers::MathematicalProgram prog_;
 

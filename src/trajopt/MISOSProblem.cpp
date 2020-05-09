@@ -51,9 +51,7 @@ MISOSProblem::MISOSProblem(
 					.monomial_to_coefficient_map();
 
 				for (int mm_deg = 0; mm_deg < degree_ + 1 - der_degree; ++mm_deg)
-				{
 					c_d(i, mm_deg) = coeff_map[drake::symbolic::Monomial(m_(mm_deg))];
-				}
 			}
 			coeffs_dj.push_back(c_d);
 			c = c_d;
@@ -130,9 +128,7 @@ Eigen::VectorX<drake::symbolic::Expression> MISOSProblem::get_coefficients_in_t(
 
 	// mm = monomial
 	for (int mm_deg = 0; mm_deg < degree_ + 1; ++mm_deg)
-	{
 		c(mm_deg) = coeff_map[drake::symbolic::Monomial(m_(mm_deg))];
-	}
 
 	return c;
 }
@@ -153,18 +149,12 @@ void MISOSProblem::create_region_binary_variables()
 
 	// Ensure that each traj segment is strictly within one region
 	for (int j = 0; j < num_traj_segments_; ++j)
-	{
 		prog_.AddLinearConstraint(H_(Eigen::all, j).sum() == 1);
-	}
 
 	// Add one constraint for each combination of region and segment
 	for (int j = 0; j < num_traj_segments_; ++j)
-	{
 		for (int r = 0; r < num_regions_; ++r)
-		{
 			add_region_constraint(r,j);
-		}
-	}
 }
 
 void MISOSProblem::add_region_constraint(
@@ -178,15 +168,12 @@ void MISOSProblem::add_region_constraint(
 
 		drake::symbolic::Polynomial q;
 		if (always_enforce)
-		{
 			// Force constaint to always be true
 			q = drake::symbolic::Polynomial(
 				bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_,
 				{t_}
 				);
-		}
 		else
-		{
 			// Use binary decision variable and big M
 			// to only enforce constraints when binary decision variable is 1
 			q = drake::symbolic::Polynomial(
@@ -194,7 +181,6 @@ void MISOSProblem::add_region_constraint(
 					bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_,
 					{t_}
 					);
-		}
 
 		drake::symbolic::Polynomial sigma_1;
 		drake::symbolic::Polynomial sigma_2;
@@ -270,10 +256,35 @@ void MISOSProblem::generate_polynomials()
 			.GetSolution(coeffs_[j]) * m_;
 
 		for (int i = 0; i < num_vars_; ++i)
-		{
 			polynomials_(i,j) = drake::symbolic::Polynomial(expr[i]);
-		}
 	}
+}
+
+void MISOSProblem::add_safe_region_assignments(
+		Eigen::MatrixX<int> safe_regions_assignments
+		)
+{
+	// Add one constraint for each combination of region and segment
+	for (int j = 0; j < num_traj_segments_; ++j)
+		for (int r = 0; r < num_regions_; ++r)
+			if (safe_regions_assignments(r,j))
+				add_region_constraint(r, j, true);
+}
+
+// ******
+// Getters
+// ******
+
+Eigen::MatrixX<int> MISOSProblem::get_region_assignments()
+{
+	Eigen::MatrixX<drake::symbolic::Expression> temp = result_.GetSolution(H_);
+	Eigen::MatrixX<int> assignments(num_regions_, num_traj_segments_);
+
+	for (int r = 0; r < num_regions_; ++r)
+		for (int j = 0; j < num_traj_segments_; ++j)
+			assignments(r,j) = temp(r,j).Evaluate();
+
+	return assignments;
 }
 
 Eigen::VectorX<double> MISOSProblem::eval(double t)
