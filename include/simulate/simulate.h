@@ -27,3 +27,4 @@
 #include "plot/plotter.h"
 
 void simulate();
+void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles);

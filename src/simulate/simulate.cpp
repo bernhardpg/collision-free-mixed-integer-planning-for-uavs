@@ -6,6 +6,106 @@ DEFINE_double(simulation_time, 10, "How long to simulate the pendulum");
 DEFINE_double(max_time_step, 1.0e-3,
               "Simulation time step used for integrator.");
 
+void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
+{
+	// ****
+	// Get convex regions using IRIS
+	// ****
+
+	// Create bounding box
+	// Matches 'ground' object in obstacles.urdf
+	Eigen::MatrixXd A_bounds(6,3);
+	A_bounds << -1, 0, 0,
+							0, -1, 0,
+							0, 0, -1,
+							1, 0, 0,
+							0, 1, 0,
+							0, 0, 1;
+
+	Eigen::VectorXd b_bounds(6);
+	b_bounds << 5, 2.5, 0, 5, 12.5, 2;
+	iris::Polyhedron bounds(A_bounds,b_bounds);
+
+	// Initialize IRIS problem
+	iris::IRISProblem iris_problem(3);
+  iris::IRISOptions options;
+	iris_problem.setBounds(bounds);
+
+	for (auto obstacle : obstacles)
+		iris_problem.addObstacle(obstacle);
+
+	// Add seedpoints
+	std::vector<Eigen::Vector3d> seed_points;
+	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
+	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
+
+	// Obtain convex regions
+	std::vector<iris::Polyhedron> convex_polygons;
+	for (auto seed_point : seed_points)
+	{
+		iris_problem.setSeedPoint(seed_point);
+		iris::IRISRegion region = inflate_region(iris_problem, options);
+		convex_polygons.push_back(region.getPolyhedron());
+	}
+
+	//plot_convex_regions_footprint(convex_polygons);
+
+	std::vector<Eigen::MatrixXd> obstacle_As;
+	std::vector<Eigen::VectorXd> obstacle_bs;
+	for (int i = 0; i < convex_polygons.size(); ++i)
+	{
+		// Matrix containing one convex region
+		obstacle_As.push_back(convex_polygons[i].getA());
+		obstacle_bs.push_back(convex_polygons[i].getB());
+	}
+
+	// ********************
+	// Calculate trajectory
+	// ********************
+
+	int num_vars = 3;
+	int num_traj_segments = 8;
+	int degree = 3;
+	int cont_degree = 2;
+
+	Eigen::VectorX<double> init_pos(num_vars);
+	Eigen::VectorX<double> final_pos(num_vars);
+	init_pos << 0.0, 0.0, 1.0;
+	final_pos << 0.0, 6.5, 1.0;
+
+	auto traj_3rd_deg = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
+	traj_3rd_deg.add_convex_regions(obstacle_As, obstacle_bs);
+	traj_3rd_deg.create_region_binary_variables();
+	traj_3rd_deg.generate();
+	Eigen::MatrixX<int> safe_region_assignments = traj_3rd_deg.get_region_assignments();
+	std::cout << "Found 3rd order trajectory" << std::endl;
+
+	// Create trajectory with degree 5 with fixed region constraints
+	degree = 5;
+	cont_degree = 4;
+
+	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
+	traj.add_convex_regions(obstacle_As, obstacle_bs);
+	traj.add_safe_region_assignments(safe_region_assignments);
+	traj.generate();
+	std::cout << "Found 5th order trajectory" << std::endl;
+	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
+
+
+//	traj.add_region_constraint(0, 0, true);
+//	traj.add_region_constraint(0, 1, true);
+//	traj.add_region_constraint(1, 2, true);
+//	traj.add_region_constraint(1, 3, true);
+//	traj.add_region_constraint(2, 4, true);
+//	traj.add_region_constraint(2, 5, true);
+//	traj.add_region_constraint(3, 6, true);
+//	traj.add_region_constraint(3, 7, true);
+
+	return;
+}
+
 void simulate()
 {
 	std::cout << "Running drake simulation" << std::endl;
@@ -82,85 +182,11 @@ void simulate()
 	auto obstacle_geometries = geometry::getObstacleGeometries(&plant);
 	std::vector<Eigen::Matrix3Xd> obstacles = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
 
-	// ****
-	// Get convex regions using IRIS
-	// ****
-
-	// Create bounding box
-	// Matches 'ground' object in obstacles.urdf
-	Eigen::MatrixXd A_bounds(6,3);
-	A_bounds << -1, 0, 0,
-							0, -1, 0,
-							0, 0, -1,
-							1, 0, 0,
-							0, 1, 0,
-							0, 0, 1;
-
-	Eigen::VectorXd b_bounds(6);
-	b_bounds << 5, 2.5, 0, 5, 12.5, 2;
-	iris::Polyhedron bounds(A_bounds,b_bounds);
-
-	// Initialize IRIS problem
-	iris::IRISProblem iris_problem(3);
-  iris::IRISOptions options;
-	iris_problem.setBounds(bounds);
-
-	for (auto obstacle : obstacles)
-		iris_problem.addObstacle(obstacle);
-
-	// Add seedpoints
-	std::vector<Eigen::Vector3d> seed_points;
-	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
-	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
-	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
-	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
-
-	// Obtain convex regions
-	std::vector<iris::Polyhedron> convex_polygons;
-	for (auto seed_point : seed_points)
-	{
-		iris_problem.setSeedPoint(seed_point);
-		iris::IRISRegion region = inflate_region(iris_problem, options);
-		convex_polygons.push_back(region.getPolyhedron());
-	}
-
-	plot_convex_regions_footprint(convex_polygons);
-
-	std::vector<Eigen::MatrixXd> obstacle_As;
-	std::vector<Eigen::VectorXd> obstacle_bs;
-	for (int i = 0; i < convex_polygons.size(); ++i)
-	{
-		// Matrix containing one convex region
-		obstacle_As.push_back(convex_polygons[i].getA());
-		obstacle_bs.push_back(convex_polygons[i].getB());
-	}
-
-	// ********************
+	// ********
 	// Calculate trajectory
-	// ********************
+	// ********
 
-	int num_vars = 3;
-	int num_traj_segments = 8;
-	int degree = 3;
-	int cont_degree = 2;
-	Eigen::VectorX<double> init_pos(num_vars);
-	init_pos << 0.0, 0.0, 1.0;
-
-	Eigen::VectorX<double> final_pos(num_vars);
-	final_pos << 0.0, 6.5, 1.0;
-
-	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
-
-	traj.add_region_constraint(0, 0, true);
-	traj.add_region_constraint(0, 1, true);
-	traj.add_region_constraint(1, 2, true);
-	traj.add_region_constraint(1, 3, true);
-	traj.add_region_constraint(2, 4, true);
-	traj.add_region_constraint(2, 5, true);
-	traj.add_region_constraint(3, 6, true);
-	traj.add_region_constraint(3, 7, true);
-
-	traj.generate();
+	find_trajectory(obstacles);
 	return;
 
 	// ********
