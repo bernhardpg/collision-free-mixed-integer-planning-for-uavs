@@ -24,12 +24,20 @@ namespace trajopt
 					Eigen::VectorX<double> final_cond
 					);
 
-			// TODO clean up these functions
-			void add_region_constraint(int region_number, int segment_number);
-			void add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, int segment_number);
-			void add_convex_regions(
-					std::vector<Eigen::MatrixX<double>> As, std::vector<Eigen::VectorX<double>> bs
+			void add_region_constraint(
+					int region_number, int segment_number
+					)
+			{
+				add_region_constraint(region_number, segment_number, false);
+			};
+			void add_region_constraint(
+					int region_number, int segment_number, bool always_enforce
 					);
+			void add_convex_regions(
+					std::vector<Eigen::MatrixX<double>> As,
+					std::vector<Eigen::VectorX<double>> bs
+					);
+			void create_region_binary_variables();
 			void generate();
 			Eigen::VectorX<double> eval(double t);
 

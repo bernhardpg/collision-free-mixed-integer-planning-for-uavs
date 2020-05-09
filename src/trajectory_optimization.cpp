@@ -144,10 +144,14 @@ void MISOSProblem::add_convex_regions(
 		)
 {
 	num_regions_ = As.size();
-	H_ = prog_.NewBinaryVariables(num_regions_, num_traj_segments_, "H");
 	regions_A_ = As;
 	regions_b_ = bs;
+}
 
+// Will create a binary decision variable for each combination of region and segment
+void MISOSProblem::create_region_binary_variables()
+{
+	H_ = prog_.NewBinaryVariables(num_regions_, num_traj_segments_, "H");
 	// Ensure that each traj segment is strictly within one region
 	for (int j = 0; j < num_traj_segments_; ++j)
 	{
@@ -163,20 +167,34 @@ void MISOSProblem::add_convex_regions(
 	}
 }
 
-void MISOSProblem::add_region_constraint(int region_number, int segment_number)
+void MISOSProblem::add_region_constraint(
+		int region_number, int segment_number, bool always_enforce
+		)
 {
-
 	for (int i = 0; i < regions_A_[region_number].rows(); ++i)
 	{
 		auto ai_transpose = regions_A_[region_number](i, Eigen::all);
 		auto bi = regions_b_[region_number](i);
 
-		// Use big M to only enforce constraints for one region per trajectory segment
-		drake::symbolic::Polynomial q(
-				big_M_ * (1 - H_(region_number, segment_number)) +
+		drake::symbolic::Polynomial q;
+		if (always_enforce)
+		{
+			// Force constaint to always be true
+			q = drake::symbolic::Polynomial(
 				bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_,
 				{t_}
 				);
+		}
+		else
+		{
+			// Use binary decision variable and big M
+			// to only enforce constraints when binary decision variable is 1
+			q = drake::symbolic::Polynomial(
+					big_M_ * (1 - H_(region_number, segment_number)) +
+					bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_,
+					{t_}
+					);
+		}
 
 		drake::symbolic::Polynomial sigma_1;
 		drake::symbolic::Polynomial sigma_2;
@@ -212,60 +230,6 @@ void MISOSProblem::add_region_constraint(int region_number, int segment_number)
 		// which MI with SOS constraints will be translated to.
 		else
 		{
-			sigma_1 = prog_.NewSosPolynomial(
-					{t_}, degree_ - 1
-					).first;
-			sigma_2 = prog_.NewSosPolynomial(
-					{t_}, degree_ - 1
-					).first;
-		}
-
-		// Add constraints: q(t) = t * sigma1(t) + (1 - t) * sigma2(t)
-		// by setting coefficiants equal
-		prog_.AddLinearConstraint(
-				get_coefficients(q).array() ==
-				get_coefficients(t_ * sigma_1 + sigma_2 - t_ * sigma_2).array()
-				);
-	}
-}
-
-void MISOSProblem::add_region_constraint(Eigen::MatrixXd A, Eigen::VectorXd b, int segment_number)
-{
-	for (int i = 0; i < A.rows(); ++i)
-	{
-		auto ai_transpose = A(i, Eigen::all);
-		auto bi = b(i);
-		drake::symbolic::Polynomial q(
-				bi - vehicle_radius_ - ai_transpose * coeffs_[segment_number] * m_, {t_}
-				);
-
-		drake::symbolic::Polynomial sigma_1;
-		drake::symbolic::Polynomial sigma_2;
-
-		// Add second order cone constraint
-		if (degree_ == 3)
-		{
-			coeff_matrix_t sigma_coeffs = prog_.NewContinuousVariables(2, 3, "Beta");
-
-			sigma_1  = drake::symbolic::Polynomial(sigma_coeffs(0, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
-			sigma_2  = drake::symbolic::Polynomial(sigma_coeffs(1, Eigen::all).dot(m_(Eigen::seq(0,2))), {t_});
-
-			prog_.AddRotatedLorentzConeConstraint(
-					sigma_coeffs(0,0),
-					sigma_coeffs(0,2),
-					0.25 * sigma_coeffs(0,1) * sigma_coeffs(0,1)
-					);
-
-			prog_.AddRotatedLorentzConeConstraint(
-					sigma_coeffs(1,0),
-					sigma_coeffs(1,2),
-					0.25 * sigma_coeffs(1,1) * sigma_coeffs(1,1)
-					);
-		}
-		// Add SOS constraint
-		else
-		{
-			std::cout << "Adding SOS polynomial constraint" << std::endl;
 			sigma_1 = prog_.NewSosPolynomial(
 					{t_}, degree_ - 1
 					).first;

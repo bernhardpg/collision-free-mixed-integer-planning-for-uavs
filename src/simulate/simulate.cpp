@@ -151,14 +151,14 @@ void simulate()
 
 	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
 
-	traj.add_region_constraint(obstacle_As[0], obstacle_bs[0], 0);
-	traj.add_region_constraint(obstacle_As[0], obstacle_bs[0], 1);
-	traj.add_region_constraint(obstacle_As[1], obstacle_bs[1], 2);
-	traj.add_region_constraint(obstacle_As[1], obstacle_bs[1], 3);
-	traj.add_region_constraint(obstacle_As[2], obstacle_bs[2], 4);
-	traj.add_region_constraint(obstacle_As[2], obstacle_bs[2], 5);
-	traj.add_region_constraint(obstacle_As[3], obstacle_bs[3], 6);
-	traj.add_region_constraint(obstacle_As[3], obstacle_bs[3], 7);
+	traj.add_region_constraint(0, 0, true);
+	traj.add_region_constraint(0, 1, true);
+	traj.add_region_constraint(1, 2, true);
+	traj.add_region_constraint(1, 3, true);
+	traj.add_region_constraint(2, 4, true);
+	traj.add_region_constraint(2, 5, true);
+	traj.add_region_constraint(3, 6, true);
+	traj.add_region_constraint(3, 7, true);
 
 	traj.generate();
 	return;

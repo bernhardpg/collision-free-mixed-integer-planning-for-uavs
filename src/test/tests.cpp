@@ -128,11 +128,11 @@ void test_trajectory_with_iris()
 					0.2, 0;
 	problem.addObstacle(obs.transpose());
 	obstacles.push_back(obs);
-	
+
 	obs << 2, 0,
 				 2, 4,
 				 2.2, 4,
-				 2.2, 0; 
+				 2.2, 0;
 	problem.addObstacle(obs.transpose());
 	obstacles.push_back(obs);
 
@@ -158,7 +158,6 @@ void test_trajectory_with_iris()
 	std::vector<Eigen::Vector2d> seed_points;
 	seed_points.push_back(Eigen::Vector2d(1,1));
 	seed_points.push_back(Eigen::Vector2d(2.1,4.5));
-	seed_points.push_back(Eigen::Vector2d(3,1));
 	seed_points.push_back(Eigen::Vector2d(2.5,3.5));
 	seed_points.push_back(Eigen::Vector2d(4.5,2.5));
 	//seed_points.push_back(Eigen::Vector2d(0.5,3.5));
@@ -192,7 +191,7 @@ void test_trajectory_with_iris()
 
 	// Create trajectory
 	int num_vars = 2;
-	int num_traj_segments = 10;
+	int num_traj_segments = 8;
 	int degree = 3;
 	int cont_degree = 2;
 	Eigen::VectorX<double> init_pos(num_vars);
@@ -202,16 +201,17 @@ void test_trajectory_with_iris()
 	final_pos << 4.5, 2.5;
 
 	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
-//	traj.add_region_constraint(As[0], bs[0], 0);
-//	traj.add_region_constraint(As[0], bs[0], 1);
-//	traj.add_region_constraint(As[0], bs[0], 2);
-//	traj.add_region_constraint(As[1], bs[1], 3);
-//	traj.add_region_constraint(As[1], bs[1], 4);
-//	traj.add_region_constraint(As[2], bs[2], 5);
-//	traj.add_region_constraint(As[2], bs[2], 6);
 
 	traj.add_convex_regions(As, bs);
-
+	//traj.create_region_binary_variables();
+	traj.add_region_constraint(0, 0, true);
+	traj.add_region_constraint(0, 1, true);
+	traj.add_region_constraint(1, 2, true);
+	traj.add_region_constraint(1, 3, true);
+	traj.add_region_constraint(2, 4, true);
+	traj.add_region_constraint(2, 5, true);
+	traj.add_region_constraint(3, 6, true);
+	traj.add_region_constraint(3, 7, true);
 	traj.generate();
 	//
 	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
