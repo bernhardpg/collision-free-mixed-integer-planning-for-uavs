@@ -1,6 +1,4 @@
-#include "trajectory_optimization.h"
-#include <drake/solvers/mosek_solver.h>
-
+#include "trajopt/MISOSProblem.h"
 
 namespace trajopt
 {

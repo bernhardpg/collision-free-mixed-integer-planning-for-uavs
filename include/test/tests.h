@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include <Eigen/Dense>
-#include "trajectory_optimization.h"
+#include "trajopt/MISOSProblem.h"
 #include "plot/plotter.h"
 
 void test_trajopt();

@@ -3,6 +3,7 @@
 #include <drake/common/symbolic.h>
 #include <drake/solvers/mathematical_program.h>
 #include <drake/solvers/solve.h>
+#include <drake/solvers/mosek_solver.h>
 #include <drake/common/trajectories/piecewise_polynomial.h>
 #include <iostream>
 #include <Eigen/Core>

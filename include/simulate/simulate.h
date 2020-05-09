@@ -23,7 +23,7 @@
 #include "tools/geometry.h"
 
 #include "iris/iris.h"
-#include "trajectory_optimization.h"
+#include "trajopt/MISOSProblem.h"
 #include "plot/plotter.h"
 
 void simulate();

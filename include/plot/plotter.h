@@ -6,7 +6,7 @@
 #include "plot/matplotlibcpp.h"
 #include "tools/ConvexHull.h"
 #include "trajopt/PPTrajectory.h"
-#include "trajectory_optimization.h"
+#include "trajopt/MISOSProblem.h"
 
 namespace plt = matplotlibcpp;
 

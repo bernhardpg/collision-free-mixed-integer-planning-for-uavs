@@ -51,7 +51,7 @@ target_link_libraries(${PROJECT_NAME} tests)
 target_link_libraries(${PROJECT_NAME} trajopt)
 target_link_libraries(${PROJECT_NAME} simulate)
 
-add_library(trajopt src/trajectory_optimization.cpp src/trajopt/PPTrajectory.cpp)
+add_library(trajopt src/trajopt/MISOSProblem.cpp src/trajopt/PPTrajectory.cpp)
 target_link_libraries(trajopt drake::drake)
 target_link_libraries(trajopt Eigen3::Eigen)
 
