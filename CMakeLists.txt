@@ -56,7 +56,7 @@ add_executable(test_visualizer src/test_visualize.cpp)
 target_link_libraries(test_visualizer drake::drake)
 target_link_libraries(test_visualizer gflags)
 
-add_library(trajopt src/trajopt/MISOSProblem.cpp src/trajopt/PPTrajectory.cpp)
+add_library(trajopt src/trajopt/MISOSProblem.cpp src/trajopt/PPTrajectory.cpp src/trajopt/safe_regions.cpp)
 target_link_libraries(trajopt drake::drake)
 target_link_libraries(trajopt Eigen3::Eigen)
 

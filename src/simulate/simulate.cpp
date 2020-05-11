@@ -24,15 +24,6 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 
 	Eigen::VectorXd b_bounds(6);
 	b_bounds << 5, 2.5, 0, 5, 12.5, 2;
-	iris::Polyhedron bounds(A_bounds,b_bounds);
-
-	// Initialize IRIS problem
-	iris::IRISProblem iris_problem(3);
-  iris::IRISOptions options;
-	iris_problem.setBounds(bounds);
-
-	for (auto obstacle : obstacles)
-		iris_problem.addObstacle(obstacle);
 
 	// Add seedpoints
 	std::vector<Eigen::Vector3d> seed_points;
@@ -42,26 +33,18 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
 	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
 
-	// Obtain convex regions
-	std::vector<iris::Polyhedron> convex_polygons;
-	for (auto seed_point : seed_points)
-	{
-		iris_problem.setSeedPoint(seed_point);
-		iris::IRISRegion region = inflate_region(iris_problem, options);
-		convex_polygons.push_back(region.getPolyhedron());
-	}
+	trajopt::SafeRegions safe_regions(3);
+	safe_regions.set_bounds(A_bounds, b_bounds);
+	safe_regions.set_seedpoints(seed_points);
+	safe_regions.set_obstacles(obstacles);
+	safe_regions.calc_safe_regions();
+	auto safe_region_As = safe_regions.get_As();
+	auto safe_region_bs = safe_regions.get_bs();
 
 	plot_3d_obstacles_footprints(obstacles);
-	plot_3d_regions_footprint(convex_polygons);
+	plot_3d_regions_footprint(safe_regions.get_polyhedrons());
 
-	std::vector<Eigen::MatrixXd> obstacle_As;
-	std::vector<Eigen::VectorXd> obstacle_bs;
-	for (int i = 0; i < convex_polygons.size(); ++i)
-	{
-		// Matrix containing one convex region
-		obstacle_As.push_back(convex_polygons[i].getA());
-		obstacle_bs.push_back(convex_polygons[i].getB());
-	}
+	return;
 
 	// ********************
 	// Calculate trajectory
@@ -78,7 +61,7 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	final_pos << 0.0, 6.5, 1.0;
 
 	auto traj_3rd_deg = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
-	traj_3rd_deg.add_convex_regions(obstacle_As, obstacle_bs);
+	traj_3rd_deg.add_convex_regions(safe_region_As, safe_region_bs);
 	traj_3rd_deg.create_region_binary_variables();
 	traj_3rd_deg.generate();
 	Eigen::MatrixX<int> safe_region_assignments = traj_3rd_deg.get_region_assignments();
@@ -89,7 +72,7 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	cont_degree = 4;
 
 	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
-	traj.add_convex_regions(obstacle_As, obstacle_bs);
+	traj.add_convex_regions(safe_region_As, safe_region_bs);
 	traj.add_safe_region_assignments(safe_region_assignments);
 	traj.generate();
 	std::cout << "Found 5th order trajectory" << std::endl;
@@ -191,6 +174,7 @@ void simulate()
 	// ********
 
 	find_trajectory(obstacles);
+	return;
 	
 	// ********
 	// Simulate
