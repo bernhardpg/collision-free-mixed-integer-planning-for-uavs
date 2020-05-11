@@ -79,18 +79,23 @@ void plot_PPTrajectory(trajopt::PPTrajectory *traj, Eigen::VectorXd sample_times
 
 void plot_convex_hull(std::vector<Eigen::VectorXd> points)
 {
+	plot_convex_hull(points, false);
+}
+
+void plot_convex_hull(std::vector<Eigen::VectorXd> points, bool filled)
+{
 	auto convex_hull = makeConvexHull(points);
-	plot_region(convex_hull);
+	plot_region(convex_hull, filled);
 }
 
 void plot_convex_hull_show(std::vector<Eigen::VectorXd> points)
 {
 	auto convex_hull = makeConvexHull(points);
-	plot_region(convex_hull);
+	plot_region(convex_hull, false);
 	plt::show();
 }
 
-void plot_region(std::vector<Eigen::VectorXd> points)
+void plot_region(std::vector<Eigen::VectorXd> points, bool filled)
 {
 	std::vector<double> x;
 	std::vector<double> y;
@@ -104,11 +109,13 @@ void plot_region(std::vector<Eigen::VectorXd> points)
 	x.push_back(points[0](0));
 	y.push_back(points[0](1));
 
-	//plt::fill(x, y, {});
-	plt::plot(x,y);
+	if (filled)
+		plt::fill(x, y, {});
+	else
+		plt::plot(x,y);
 }
 
-// Takes obstacles defined by simplexes and plots them
+// Takes 2D obstacles defined by simplexes and plots them
 // Obstacle: (x,y)
 void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles)
 {
@@ -127,22 +134,20 @@ void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles)
 	}
 }
 
-// TODO
-void plot_obstacles_footprints(std::vector<Eigen::Matrix3Xd> convex_polygons)
+void plot_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
 {
 	// Plot convex regions
-	for (int i = 0; i < convex_polygons.size(); ++i)
+	for (int i = 0; i < obstacles.size(); ++i)
 	{
+		auto obstacle = obstacles[i];
 		std::vector<Eigen::VectorXd> ground_points;
-		for (auto point : convex_polygons)
+		for (int j = 0; j < obstacle.cols(); ++j)
 		{
+			auto point = obstacle(Eigen::all, j);
 			if (point(2) == 0.0)
 				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
 		}
-		if (i == convex_polygons.size() - 1)
-			plot_convex_hull_show(ground_points);
-		else
-			plot_convex_hull(ground_points);
+		plot_convex_hull(ground_points, true);
 	}
 }
 

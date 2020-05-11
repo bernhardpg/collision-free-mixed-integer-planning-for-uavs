@@ -31,7 +31,7 @@ namespace geometry {
 		std::optional<Box> box_{};
 	};
 
-	Eigen::Matrix3Xd getVertices(
+	Eigen::Matrix3Xd getVerticesFromBox(
 			double x_half_width, double y_half_width, double z_half_width,
 			Eigen::Matrix3d rotation, Eigen::Vector3d origin
 			);

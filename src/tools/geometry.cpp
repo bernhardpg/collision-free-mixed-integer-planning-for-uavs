@@ -50,7 +50,7 @@ namespace geometry {
 			const Eigen::Matrix3d rotation = X_WB.rotation().matrix();
 			const Eigen::Vector3d& pos_origin = X_WB.translation();
 
-			Eigen::Matrix3Xd obstacle_vertices = geometry::getVertices(
+			Eigen::Matrix3Xd obstacle_vertices = geometry::getVerticesFromBox(
 					box->width() * 0.5, box->depth() * 0.5, box->height() * 0.5,
 					rotation, pos_origin);
 
@@ -60,7 +60,7 @@ namespace geometry {
 		return obstacles_vertices;
 	}
 
-	Eigen::Matrix3Xd getVertices(
+	Eigen::Matrix3Xd getVerticesFromBox(
 			double x_half_width, double y_half_width, double z_half_width,
 			Eigen::Matrix3d rotation, Eigen::Vector3d origin
 			)

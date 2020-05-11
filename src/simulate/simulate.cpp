@@ -51,8 +51,7 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 		convex_polygons.push_back(region.getPolyhedron());
 	}
 
-	// TODO plot obstacle footprints
-	//plot_convex_regions_footprint(obstacles);
+	plot_obstacles_footprints(obstacles);
 	plot_convex_regions_footprint(convex_polygons);
 
 	std::vector<Eigen::MatrixXd> obstacle_As;
@@ -94,8 +93,6 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	traj.add_safe_region_assignments(safe_region_assignments);
 	traj.generate();
 	std::cout << "Found 5th order trajectory" << std::endl;
-//	plot_traj(&traj, num_traj_segments, init_pos, final_pos);
-
 
 	// TODO cleanup
 	// Visualize trajectory
