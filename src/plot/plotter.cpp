@@ -1,6 +1,7 @@
 #include "plot/plotter.h"
 
-void plot_traj(
+// Plots a trajectory in 2D. Will disregard z component
+void plot_MISOSTrajectory(
 		trajopt::MISOSProblem *traj, int num_traj_segments, Eigen::VectorX<double> init_pos, Eigen::VectorX<double> final_pos
 		)
 {
@@ -47,55 +48,21 @@ void plot_traj(
 	plt::show();
 }
 
-void plot_PPTrajectory(trajopt::PPTrajectory *traj, Eigen::VectorXd sample_times, double tf)
-{
-	// TODO move some of this into trajopt
-	const double delta_t = 0.01;
-	int N = (int)(tf / delta_t);
 
-	std::vector<double> x;
-	std::vector<double> y;
+void plot_2d_convex_hull(std::vector<Eigen::VectorXd> points, bool filled)
+{ plot_2d_convex_hull(points, filled, false);}
+void plot_2d_convex_hull(std::vector<Eigen::VectorXd> points)
+{ plot_2d_convex_hull(points, false);}
 
-	for (int i = 0; i < N; ++i)
-	{
-		double t = 0.0 + delta_t * i;
-		x.push_back(traj->eval(t)(0));
-		y.push_back(traj->eval(t)(1));
-	}
-
-	std::vector<double> sample_times_x;
-	std::vector<double> sample_times_y;
-	for (int i = 0; i < sample_times.size(); ++i)
-	{
-			sample_times_x.push_back(traj->eval(sample_times[i])(0));
-			sample_times_y.push_back(traj->eval(sample_times[i])(1));
-	}
-
-	typedef	std::unordered_map<std::string, std::string> string_map;
-	plt::plot(x, y);
-	plt::scatter(sample_times_x, sample_times_y, 20, string_map({{"color","red"}}));
-	plt::show();
-}
-
-void plot_convex_hull(std::vector<Eigen::VectorXd> points)
-{
-	plot_convex_hull(points, false);
-}
-
-void plot_convex_hull(std::vector<Eigen::VectorXd> points, bool filled)
+void plot_2d_convex_hull(std::vector<Eigen::VectorXd> points, bool filled, bool show)
 {
 	auto convex_hull = makeConvexHull(points);
-	plot_region(convex_hull, filled);
+	plot_2d_region(convex_hull, filled);
+	if (show)
+		plt::show();
 }
 
-void plot_convex_hull_show(std::vector<Eigen::VectorXd> points)
-{
-	auto convex_hull = makeConvexHull(points);
-	plot_region(convex_hull, false);
-	plt::show();
-}
-
-void plot_region(std::vector<Eigen::VectorXd> points, bool filled)
+void plot_2d_region(std::vector<Eigen::VectorXd> points, bool filled)
 {
 	std::vector<double> x;
 	std::vector<double> y;
@@ -115,9 +82,9 @@ void plot_region(std::vector<Eigen::VectorXd> points, bool filled)
 		plt::plot(x,y);
 }
 
-// Takes 2D obstacles defined by simplexes and plots them
+// Takes 2D obstacles defined by vertices and plots them
 // Obstacle: (x,y)
-void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles)
+void plot_2d_obstacles(std::vector<Eigen::MatrixXd> obstacles)
 {
 	for (int i = 0; i < obstacles.size(); ++i)
 	{
@@ -134,7 +101,7 @@ void plot_obstacles(std::vector<Eigen::MatrixXd> obstacles)
 	}
 }
 
-void plot_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
+void plot_3d_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
 {
 	// Plot convex regions
 	for (int i = 0; i < obstacles.size(); ++i)
@@ -147,11 +114,11 @@ void plot_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
 			if (point(2) == 0.0)
 				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
 		}
-		plot_convex_hull(ground_points, true);
+		plot_2d_convex_hull(ground_points, true);
 	}
 }
 
-void plot_convex_regions_footprint(std::vector<iris::Polyhedron> convex_polygons)
+void plot_3d_regions_footprint(std::vector<iris::Polyhedron> convex_polygons)
 {
 	// Plot convex regions
 	for (int i = 0; i < convex_polygons.size(); ++i)
@@ -163,9 +130,8 @@ void plot_convex_regions_footprint(std::vector<iris::Polyhedron> convex_polygons
 			if (point(2) == 0.0)
 				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
 		}
-		if (i == convex_polygons.size() - 1)
-			plot_convex_hull_show(ground_points);
-		else
-			plot_convex_hull(ground_points);
+		bool show = false;
+		if (i == convex_polygons.size() - 1) show = true;
+		plot_2d_convex_hull(ground_points, false, show);
 	}
 }

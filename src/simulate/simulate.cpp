@@ -51,8 +51,8 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 		convex_polygons.push_back(region.getPolyhedron());
 	}
 
-	plot_obstacles_footprints(obstacles);
-	plot_convex_regions_footprint(convex_polygons);
+	plot_3d_obstacles_footprints(obstacles);
+	plot_3d_regions_footprint(convex_polygons);
 
 	std::vector<Eigen::MatrixXd> obstacle_As;
 	std::vector<Eigen::VectorXd> obstacle_bs;

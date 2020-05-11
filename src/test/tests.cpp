@@ -88,10 +88,10 @@ void test_trajectory_socp_fix_mi_variables()
 	for (int i = 0; i < convex_polygons.size(); ++i)
 	{
 		auto points = convex_polygons[i].generatorPoints();
-		plot_convex_hull(points);
+		plot_2d_convex_hull(points);
 	}
 
-	plot_obstacles(obstacles);
+	plot_2d_obstacles(obstacles);
 
 	// Create trajectory with degree 3 for SOCP constraints
 	int num_vars = 2;
@@ -308,10 +308,10 @@ void test_trajectory_with_iris()
 	for (int i = 0; i < convex_polygons.size(); ++i)
 	{
 		auto points = convex_polygons[i].generatorPoints();
-		plot_convex_hull(points);
+		plot_2d_convex_hull(points);
 	}
 
-	plot_obstacles(obstacles);
+	plot_2d_obstacles(obstacles);
 
 	// Create trajectory
 	int num_vars = 2;
@@ -380,8 +380,8 @@ void test_iris()
 	iris::Polyhedron solution = region.getPolyhedron();
 
 	auto points = solution.generatorPoints();
-	plot_convex_hull(points);
-	plot_obstacles(obstacles);
+	plot_2d_convex_hull(points);
+	plot_2d_obstacles(obstacles);
 }
 
 
