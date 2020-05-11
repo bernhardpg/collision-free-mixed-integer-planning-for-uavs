@@ -12,19 +12,6 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	// Get convex regions using IRIS
 	// ****
 
-	// Create bounding box
-	// Matches 'ground' object in obstacles.urdf
-	Eigen::MatrixXd A_bounds(6,3);
-	A_bounds << -1, 0, 0,
-							0, -1, 0,
-							0, 0, -1,
-							1, 0, 0,
-							0, 1, 0,
-							0, 0, 1;
-
-	Eigen::VectorXd b_bounds(6);
-	b_bounds << 5, 2.5, 0, 5, 12.5, 2;
-
 	// Add seedpoints
 	std::vector<Eigen::Vector3d> seed_points;
 	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
@@ -34,10 +21,12 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
 
 	trajopt::SafeRegions safe_regions(3);
-	safe_regions.set_bounds(A_bounds, b_bounds);
-	safe_regions.set_seedpoints(seed_points);
+	// Matches 'ground' object in obstacles.urdf
+	safe_regions.set_bounds(-5, 5, -2.5, 12.5, 0, 2);
+	//safe_regions.set_seedpoints(seed_points);
 	safe_regions.set_obstacles(obstacles);
-	safe_regions.calc_safe_regions();
+	safe_regions.set_automatic_seedpoints(8);
+	//safe_regions.calc_safe_regions();
 	auto safe_region_As = safe_regions.get_As();
 	auto safe_region_bs = safe_regions.get_bs();
 
