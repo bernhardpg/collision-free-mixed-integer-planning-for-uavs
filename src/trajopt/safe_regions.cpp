@@ -233,11 +233,8 @@ bool SafeRegions::is_collision(Eigen::Vector3d point)
 		auto A = safe_region_As_[i];
 		auto b = safe_region_bs_[i];
 
-	//	std::cout << "Checking collision with region\n";
 		if (point_inside_halfspace(point, A, b))
 		{
-	//		std::cout << "point: \n" << point << std::endl << std::endl;
-	//		std::cout << "colliding!" << std::endl;
 			return true;
 		}
 	}
@@ -248,10 +245,8 @@ bool SafeRegions::is_collision(Eigen::Vector3d point)
 		auto A = obstacles_As_[i];
 		auto b = obstacles_bs_[i];
 		
-		//std::cout << "Checking collision with obstacle:\n" << A << std::endl << b << std::endl;
 		if (point_inside_halfspace(point, A, b))
 		{
-			//std::cout << "colliding!" << std::endl;
 			return true;
 		}
 	}
@@ -265,8 +260,6 @@ bool SafeRegions::point_inside_halfspace(
 {
 	// A * point <= b : Inside half space
 	Eigen::VectorXd temp = A * point;
-	//std::cout << "temp:\n";
-	//std::cout << temp << std::endl << std::endl;
 	for (int i = 0; i < temp.size(); ++i)
 	{
 		if (temp(i) > b(i)) // outside at least one face

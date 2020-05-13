@@ -111,6 +111,28 @@
     </collision>
    </link>
 
+   <link name="obs4">
+   	<inertial>
+   		<mass value=".5" />
+   		<origin xyz="0 0 0" rpy="0 0 0"/>
+		<inertia ixx="10"  ixy="0"  ixz="0" iyy="10" iyz="0" izz="10" />
+   	</inertial>
+  	<visual>
+      <origin xyz="-3 4 1.5" rpy="0 0 0" />
+      <geometry>
+        <box size="4 1 1" />
+      </geometry>
+      <material name="Blue"/>
+    </visual>
+    <collision>
+      <origin xyz="-3 4 1.5" rpy="0 0 0" />
+      <geometry>
+        <box size="4 1 1" />
+      </geometry>
+      <material name="Blue"/>
+    </collision>
+   </link>
+
 		<joint name="obs2_to_ground" type="fixed">
 			<parent link="ground"/>
 			<child link="obs2"/>
@@ -126,6 +148,12 @@
 		<joint name="obs3_to_ground" type="fixed">
 			<parent link="ground"/>
 			<child link="obs3"/>
+			<origin xyz="0 0 0"/>
+		</joint>
+
+		<joint name="obs4_to_ground" type="fixed">
+			<parent link="ground"/>
+			<child link="obs4"/>
 			<origin xyz="0 0 0"/>
 		</joint>
 
