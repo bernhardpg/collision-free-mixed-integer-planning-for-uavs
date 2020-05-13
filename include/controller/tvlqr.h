@@ -24,27 +24,42 @@ namespace controller
 	class ControllerConstructor
 	{
 		public:
-			ControllerConstructor();
+			ControllerConstructor(double m, Eigen::Matrix3d inertia);
 
 		private:
 			const drake::symbolic::Variable x_;
 			const drake::symbolic::Variable y_;
 			const drake::symbolic::Variable z_;
 
-			const drake::symbolic::Variable phi_;
-			const drake::symbolic::Variable th_;
-			const drake::symbolic::Variable psi_;
+			const drake::symbolic::Variable phi_; // roll
+			const drake::symbolic::Variable th_;  // pitch
+			const drake::symbolic::Variable psi_; // yaw
+
+			const drake::symbolic::Variable xDt_;
+			const drake::symbolic::Variable yDt_;
+			const drake::symbolic::Variable zDt_;
+
+			const drake::symbolic::Variable phiDt_;
+			const drake::symbolic::Variable thDt_;
+			const drake::symbolic::Variable psiDt_;
 
 			const drake::symbolic::Variable u_th_;
 			const drake::symbolic::Variable u_x_;
 			const drake::symbolic::Variable u_y_;
 			const drake::symbolic::Variable u_z_;
 
-			const double g_ = 9.81;
-			const double m_ = 2.856;
-			Eigen::Matrix3d inertia_; // TODO make const
+			const double g_;
+			const double m_;
+			const Eigen::Matrix3d inertia_;
+
+			Eigen::VectorX<drake::symbolic::Variable> state_;
+			Eigen::VectorX<drake::symbolic::Variable> input_;
+			Eigen::VectorX<drake::symbolic::Expression> stateDt_;
+			Eigen::MatrixX<drake::symbolic::Expression> A_;
+			Eigen::MatrixX<drake::symbolic::Expression> B_;
 
 			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
+			Eigen::Vector3<drake::symbolic::Expression> get_wDDt();
 	};
 
 } // namespace controller

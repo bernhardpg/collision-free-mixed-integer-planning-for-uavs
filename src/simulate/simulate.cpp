@@ -163,7 +163,7 @@ void simulate()
 	// ********
 
 	//find_trajectory(obstacles);
-	auto constructor = controller::ControllerConstructor();
+	auto constructor = controller::ControllerConstructor(m, inertia);
 
 	// ********
 	// Simulate
