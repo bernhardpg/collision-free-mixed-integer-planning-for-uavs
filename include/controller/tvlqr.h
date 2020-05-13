@@ -21,6 +21,30 @@ namespace controller
 			) const override;
 	};
 
-	void construct_controller_tvlqr();
+	class ControllerConstructor
+	{
+		public:
+			ControllerConstructor();
+
+		private:
+			drake::symbolic::Expression x_;
+			drake::symbolic::Expression y_;
+			drake::symbolic::Expression z_;
+
+			drake::symbolic::Expression phi_;
+			drake::symbolic::Expression th_;
+			drake::symbolic::Expression psi_;
+
+			drake::symbolic::Expression u_th_;
+			drake::symbolic::Expression u_x_;
+			drake::symbolic::Expression u_y_;
+			drake::symbolic::Expression u_z_;
+
+			double g_ = 9.81;
+			double m_ = 2.856;
+			Eigen::Matrix3d inertia_;
+
+			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
+	};
 
 } // namespace controller

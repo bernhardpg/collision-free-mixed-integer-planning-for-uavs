@@ -163,7 +163,7 @@ void simulate()
 	// ********
 
 	//find_trajectory(obstacles);
-	controller::construct_controller_tvlqr();
+	auto constructor = controller::ControllerConstructor();
 
 	// ********
 	// Simulate
