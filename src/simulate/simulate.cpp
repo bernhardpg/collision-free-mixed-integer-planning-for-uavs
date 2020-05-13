@@ -164,6 +164,9 @@ void simulate()
 
 	//find_trajectory(obstacles);
 	auto constructor = controller::ControllerConstructor(m, inertia);
+	constructor.construct_TVLQR(0.0, FLAGS_simulation_time, 0.01);
+	std::cout << "Stopping\n";
+	return;
 
 	// ********
 	// Simulate

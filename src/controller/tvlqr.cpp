@@ -80,10 +80,75 @@ namespace controller
 																						{u_z_,   0}};
 
 		std::cout << "A: " << A_.rows() << " x " << A_.cols() << std::endl;
-		std::cout << drake::symbolic::Evaluate(A_, at_origin) << std::endl;
+		std::cout << eval_A(at_origin);
 
 		std::cout << "B: " << B_.rows() << " x " << B_.cols() << std::endl;
-		std::cout << drake::symbolic::Evaluate(B_, at_origin) << std::endl;
+		std::cout << eval_B(at_origin);
+	}
+
+	Eigen::MatrixXd ControllerConstructor::eval_A(drake::symbolic::Environment curr_state)
+	{
+		return drake::symbolic::Evaluate(A_, curr_state);
+	}
+
+	Eigen::MatrixXd ControllerConstructor::eval_B(drake::symbolic::Environment curr_state)
+	{
+		return drake::symbolic::Evaluate(B_, curr_state);
+	}
+
+	void ControllerConstructor::construct_TVLQR(
+			double start_time, double end_time, double dt
+			)
+	{
+		drake::symbolic::Environment curr_state{{x_,     0},
+																						{y_,     0},
+																						{z_,     0},
+																						{phi_,   0},
+																						{th_,    0},
+																						{psi_,   0},
+																						{xDt_,   0},
+																						{yDt_,   0},
+																						{zDt_,   0},
+																						{phiDt_, 0},
+																						{thDt_,  0},
+																						{psiDt_, 0},
+																						{u_th_,  0},
+																						{u_x_,   0},
+																						{u_y_,   0},
+																						{u_z_,   0}};
+
+		int N = (end_time - start_time) / dt;
+
+		Eigen::VectorX<Eigen::MatrixXd> As(N);
+		Eigen::VectorX<Eigen::MatrixXd> Bs(N);
+		Eigen::VectorX<Eigen::MatrixXd> Ss(N);
+
+		Eigen::MatrixXd Q = Eigen::MatrixXd::Identity(12, 12);
+		Eigen::MatrixXd R = Eigen::MatrixXd::Identity(4, 4);
+
+		Eigen::MatrixXd Q_f = Eigen::MatrixXd::Identity(12, 12);
+		Ss(N-1) = Q_f;
+		As(N-1) = eval_A(curr_state);
+		Bs(N-1) = eval_B(curr_state);
+		
+		// Note: Integrating backwards
+		for (int i = N - 1; i > 0; --i)
+		{
+			// TODO update state from trajectory
+
+			// Differential Ricatti Equation
+			auto neg_SDt =
+				Ss(i) * As(i) + As(i).transpose() * Ss(i)
+				- Ss(i).transpose() * Bs(i) * R.inverse() * Bs(i).transpose() * Ss(i)
+				+ Q;
+
+			// Forward Euler to integrate S backwards
+			Ss(i - 1) = Ss(i) + dt * neg_SDt;
+
+			// Evaluate linearization for next time step
+			As(i - 1) = eval_A(curr_state);
+			Bs(i - 1) = eval_B(curr_state);
+		}
 	}
 
 	Eigen::Vector3<drake::symbolic::Expression> ControllerConstructor::get_rDDt()

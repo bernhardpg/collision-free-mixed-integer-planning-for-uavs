@@ -25,6 +25,9 @@ namespace controller
 	{
 		public:
 			ControllerConstructor(double m, Eigen::Matrix3d inertia);
+			void construct_TVLQR(
+					double start_time, double end_time, double dt
+					);
 
 		private:
 			const drake::symbolic::Variable x_;
@@ -60,6 +63,9 @@ namespace controller
 
 			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
 			Eigen::Vector3<drake::symbolic::Expression> get_wDDt();
+
+			Eigen::MatrixXd eval_A(drake::symbolic::Environment curr_state);
+			Eigen::MatrixXd eval_B(drake::symbolic::Environment curr_state);
 	};
 
 } // namespace controller
