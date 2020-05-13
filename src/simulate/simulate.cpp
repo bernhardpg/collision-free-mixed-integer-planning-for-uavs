@@ -82,9 +82,101 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 
 }
 
+DrakeSimulation::DrakeSimulation(
+		double m, double arm_length, Eigen::Matrix3d inertia
+		)
+	:
+		m_(m),
+		arm_length_(arm_length),
+		inertia_(inertia),
+		scene_graph_(builder_.AddSystem<drake::geometry::SceneGraph<double>>()),
+		plant_(builder_.AddSystem<drake::multibody::MultibodyPlant<double>>(0.0))
+{
+	// Add obstacles from file
+	drake::multibody::Parser parser(plant_);
+	auto obstacle_model = parser.AddModelFromFile("obstacles.urdf");
+	plant_->WeldFrames(
+			plant_->world_frame(), plant_->GetFrameByName("ground", obstacle_model));
+	plant_->Finalize();
+
+	// Load quadrotor model
+	quadrotor_plant_ = builder_
+		.AddSystem<drake::examples::quadrotor::QuadrotorPlant<double>>(
+				m_, arm_length_, inertia_, 1, 0.0245
+				);
+	quadrotor_plant_->set_name("quadrotor");
+	drake::examples::quadrotor::QuadrotorGeometry::AddToBuilder(
+      &builder_, quadrotor_plant_->get_output_port(0), scene_graph_);
+}
+
+void DrakeSimulation::build_quadrotor_diagram()
+{
+	diagram_ = builder_.Build();
+}
+
+void DrakeSimulation::connect_to_drake_visualizer()
+{
+	// Connect to 3D visualization
+	drake::geometry::ConnectDrakeVisualizer(&builder_, *scene_graph_);
+	//drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
+}
+
+std::vector<Eigen::Matrix3Xd> DrakeSimulation::get_obstacles()
+{
+	// Get query_object to pass geometry queries to (needs root context from diagram)
+	const auto diagram_context = diagram_->CreateDefaultContext();
+
+	const auto& query_object =
+			scene_graph_->get_query_output_port()
+			.Eval<drake::geometry::QueryObject<double>>(
+						scene_graph_->GetMyContextFromRoot(*diagram_context)
+					);
+	const auto& inspector = scene_graph_->model_inspector();
+
+	// TODO refactor geometry functions into simulation?
+	auto obstacle_geometries = geometry::getObstacleGeometries(plant_);
+	std::vector<Eigen::Matrix3Xd> obstacles = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
+
+	return obstacles;
+}
+
+void DrakeSimulation::add_controller_tvlqr()
+{
+	auto tvlqr_constructor = controller::ControllerTVLQR(m_, inertia_);
+	controller_tvlqr_ = builder_.AddSystem(
+			tvlqr_constructor.construct_drake_controller(0.0, FLAGS_simulation_time, 0.01)
+			);
+	controller_tvlqr_->set_name("TVLQR");
+
+	builder_.Connect(quadrotor_plant_->get_output_port(0), controller_tvlqr_->get_input_port());
+	builder_.Connect(controller_tvlqr_->get_output_port(), quadrotor_plant_->get_input_port(0));
+}
+
+void DrakeSimulation::run_simulation(Eigen::VectorXd x0)
+{
+	auto simulator = drake::systems::Simulator<double>(*diagram_);
+
+	// To set initial values for the simulation:
+	// * Get the Diagram's context.
+	// * Get the part of the Diagram's context associated with particle_plant.
+	// * Get the part of the particle_plant's context associated with state.
+	// * Fill the state with initial values.
+	drake::systems::Context<double>& simulator_context = simulator.get_mutable_context();
+	drake::systems::Context<double>& quadrotor_plant_context =
+			diagram_->GetMutableSubsystemContext(*quadrotor_plant_, &simulator_context);
+
+	quadrotor_plant_context.get_mutable_continuous_state_vector().SetFromVector(x0);
+
+	simulator.Initialize();
+	simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
+	simulator.AdvanceTo(FLAGS_simulation_time); // seconds
+}
+
+
 void simulate()
 {
 	std::cout << "Running drake simulation" << std::endl;
+	DRAKE_DEMAND(FLAGS_simulation_time > 0);
 
 	// *******
 	// Model parameters
@@ -97,86 +189,29 @@ void simulate()
 	double m = 2.856;
 	double arm_length = 0.2;
 
-	// **********
-	// Build diagram
-	// **********
+	// Build the simulation first to get the obstacles
+	auto obst_sim = DrakeSimulation(m, arm_length, inertia);
+	obst_sim.build_quadrotor_diagram();
+	auto obstacles = obst_sim.get_obstacles();
 
-	DRAKE_DEMAND(FLAGS_simulation_time > 0);
-
-	// Setup diagram
-	drake::systems::DiagramBuilder<double> builder;
-	auto [plant, scene_graph] =
-        drake::multibody::AddMultibodyPlantSceneGraph(&builder, 0.0);
-
-	// Add obstacles from file
-	drake::multibody::Parser parser(&plant);
-	auto obstacle_model = parser.AddModelFromFile("obstacles.urdf");
-	plant.WeldFrames(
-			plant.world_frame(), plant.GetFrameByName("ground", obstacle_model));
-	plant.Finalize();
-
-	// Load quadrotor model
-	auto quadrotor_plant = builder
-		.AddSystem<drake::examples::quadrotor::QuadrotorPlant<double>>(
-				m, arm_length, inertia, 1, 0.0245
-				);
-	quadrotor_plant->set_name("quadrotor");
-	drake::examples::quadrotor::QuadrotorGeometry::AddToBuilder(
-      &builder, quadrotor_plant->get_output_port(0), &scene_graph);
-
-	/*
-	// Create LQR controller
-  const Eigen::Vector3d kNominalPosition{((Eigen::Vector3d() << 0.0, 0.0, 1.0).
-      finished())};
-	auto lqr_controller = builder.AddSystem(
-			drake::examples::quadrotor::StabilizingLQRController(quadrotor_plant, kNominalPosition)
-			);
-  lqr_controller->set_name("lqr_controller");
-
-	// Connect controller and quadrotor
-	builder.Connect(quadrotor_plant->get_output_port(0), lqr_controller->get_input_port());
-  builder.Connect(lqr_controller->get_output_port(), quadrotor_plant->get_input_port(0));
-	*/
-
-	// Connect to 3D visualization
-	drake::geometry::ConnectDrakeVisualizer(&builder, scene_graph);
-	//drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
-
-	/*
-	auto diagram = builder.Build();
-
-	// *****
-	// Get obstacle vertices
-	// *****
-
-	// Get query_object to pass geometry queries to (needs root context from diagram)
-	const auto diagram_context = diagram->CreateDefaultContext();
-	const auto& query_object =
-			scene_graph.get_query_output_port()
-			.Eval<drake::geometry::QueryObject<double>>(
-						scene_graph.GetMyContextFromRoot(*diagram_context)
-					);
-	const auto& inspector = scene_graph.model_inspector();
-
-	auto obstacle_geometries = geometry::getObstacleGeometries(&plant);
-	std::vector<Eigen::Matrix3Xd> obstacles = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
-	*/
-
-	// ********
 	// Calculate trajectory
-	// ********
-
 	//find_trajectory(obstacles);
-	auto tvlqr_constructor = controller::ControllerTVLQR(m, inertia);
-	auto tvlqr_controller = builder.AddSystem(tvlqr_constructor.construct_drake_controller(0.0, FLAGS_simulation_time, 0.01));
-	tvlqr_controller->set_name("TVLQR");
-	//auto logger = builder.AddSystem<drake::systems::SignalLogger<double>>(4);
 
-	builder.Connect(quadrotor_plant->get_output_port(0), tvlqr_controller->get_input_port());
-	builder.Connect(tvlqr_controller->get_output_port(), quadrotor_plant->get_input_port(0));
+	// Initial conditions
+	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
+	x0 = Eigen::VectorX<double>::Random(12);
+	/*
+	x0 << 0,0,1,
+				0,0,0,
+				0,0,0,
+				0,0,0;*/
 
-	auto diagram = builder.Build();
-
+	// Build the real simulation
+	auto sim = DrakeSimulation(m, arm_length, inertia);
+	sim.connect_to_drake_visualizer();
+	sim.add_controller_tvlqr();
+	sim.build_quadrotor_diagram();
+	sim.run_simulation(x0);
 
 	//std::cout << "Stopping\n";
 	//return;
@@ -185,12 +220,13 @@ void simulate()
 	// Simulate
 	// ********
 
+	/*
 	drake::systems::Simulator<double> simulator(*diagram);
 
 	// Initial conditions
 	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
-	//x0 = Eigen::VectorX<double>::Random(12);
-	x0 << 0,0,0.2,
+	x0 = Eigen::VectorX<double>::Random(12);
+	x0 << 0,0,1,
 				0,0,0,
 				0,0,0,
 				0,0,0;
@@ -211,4 +247,5 @@ void simulate()
 	simulator.AdvanceTo(FLAGS_simulation_time); // seconds
 
 	//auto logger = builder.AddSystem<drake::systems::SignalLogger<double>>(4);
+	*/
 }

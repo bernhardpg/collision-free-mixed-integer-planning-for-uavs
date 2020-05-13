@@ -23,6 +23,9 @@ namespace controller
 		Q_(Q),
 		R_(R),
 		N_(As.size()),
+		S_inf_(
+				drake::math::ContinuousAlgebraicRiccatiEquation(As_(0), Bs_(0), Q_, R_)
+				),
 		feed_forward_(Eigen::VectorXd::Constant(4, hover_thrust/4)),
 		dt_(dt)
 	{}
@@ -36,8 +39,6 @@ namespace controller
 	{
 		double t = context.get_time();
 
-		auto S = drake::math::ContinuousAlgebraicRiccatiEquation(As_(0), Bs_(0), Q_, R_);
-		//std::cout << "S:\n" << S << std::endl << std::endl;
 		Eigen::VectorXd x_d(12);
 		x_d << 0, 0, 1.0, 0, 0, 0,
 					 0, 0,   0, 0, 0, 0;
@@ -57,27 +58,12 @@ namespace controller
 		}
 		else
 		{
-			Eigen::MatrixXd K = R_.inverse() * Bs_(0).transpose() * S;
+			Eigen::MatrixXd K = R_.inverse() * Bs_(0).transpose() * S_inf_;
 			*output = - K * (input - x_d) + feed_forward_;
 			//std::cout << "error:\n" << input - x_d << std::endl << std::endl;
-			std::cout << "-K*x\n" << *output << std::endl << std::endl;
+			//std::cout << "-K*x\n" << *output << std::endl << std::endl;
 		}
 	}
-
-	/*Eigen::Vector3d pos_ = Eigen::VectorXd(input.segment(0,3));
-	Eigen::Vector3d pos_dot_ = Eigen::VectorXd(input.segment(3,3));
-	Eigen::Vector3d att_euler = Eigen::VectorXd(input.segment(6,3));
-	Eigen::Vector3d w_ = Eigen::VectorXd(input.segment(9,3));
-
-	std::cout << att_euler << std::endl << std::endlm*/
-
-	/*
-	pos_ = input.template block<3,1>(0);
-	pos_dot_ = input.template block<3,1>(3);
-	auto att_euler = input.template block<3,1>(6);
-	w_ = input.template block<3,1>(9);
-	*/
-	
 
 	ControllerTVLQR::ControllerTVLQR(double m, Eigen::Matrix3d inertia)
 		:

@@ -35,6 +35,7 @@ namespace controller
 			const Eigen::VectorX<Eigen::MatrixXd> Ss_;
 			const Eigen::MatrixXd Q_;
 			const Eigen::MatrixXd R_;
+			Eigen::MatrixXd S_inf_;
 			const Eigen::VectorXd feed_forward_;
 			const double N_;
 			const double dt_;
