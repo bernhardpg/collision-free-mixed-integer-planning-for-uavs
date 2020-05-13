@@ -124,6 +124,7 @@ void simulate()
 	drake::examples::quadrotor::QuadrotorGeometry::AddToBuilder(
       &builder, quadrotor_plant->get_output_port(0), &scene_graph);
 
+	/*
 	// Create LQR controller
   const Eigen::Vector3d kNominalPosition{((Eigen::Vector3d() << 0.0, 0.0, 1.0).
       finished())};
@@ -135,6 +136,7 @@ void simulate()
 	// Connect controller and quadrotor
 	builder.Connect(quadrotor_plant->get_output_port(0), lqr_controller->get_input_port());
   builder.Connect(lqr_controller->get_output_port(), quadrotor_plant->get_input_port(0));
+	*/
 
 	// Connect to 3D visualization
 	drake::geometry::ConnectDrakeVisualizer(&builder, scene_graph);
@@ -168,10 +170,10 @@ void simulate()
 	auto tvlqr_constructor = controller::ControllerTVLQR(m, inertia);
 	auto tvlqr_controller = builder.AddSystem(tvlqr_constructor.construct_drake_controller(0.0, FLAGS_simulation_time, 0.01));
 	tvlqr_controller->set_name("TVLQR");
-	auto logger = builder.AddSystem<drake::systems::SignalLogger<double>>(4);
+	//auto logger = builder.AddSystem<drake::systems::SignalLogger<double>>(4);
 
 	builder.Connect(quadrotor_plant->get_output_port(0), tvlqr_controller->get_input_port());
-	builder.Connect(tvlqr_controller->get_output_port(), logger->get_input_port());
+	builder.Connect(tvlqr_controller->get_output_port(), quadrotor_plant->get_input_port(0));
 
 	auto diagram = builder.Build();
 
@@ -188,7 +190,7 @@ void simulate()
 	// Initial conditions
 	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
 	//x0 = Eigen::VectorX<double>::Random(12);
-	x0 << 0,0,2,
+	x0 << 0,0,0.2,
 				0,0,0,
 				0,0,0,
 				0,0,0;

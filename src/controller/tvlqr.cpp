@@ -13,6 +13,7 @@ namespace controller
 			const Eigen::VectorX<Eigen::MatrixXd> Ss,
 			const Eigen::MatrixXd Q,
 			const Eigen::MatrixXd R,
+			double hover_thrust,
 			const double dt
 			)
 		: drake::systems::VectorSystem<double>(12,4),
@@ -21,6 +22,8 @@ namespace controller
 		Ss_(Ss),
 		Q_(Q),
 		R_(R),
+		N_(As.size()),
+		feed_forward_(Eigen::VectorXd::Constant(4, hover_thrust/4)),
 		dt_(dt)
 	{}
 
@@ -32,16 +35,33 @@ namespace controller
 	) const
 	{
 		double t = context.get_time();
-		*output = Eigen::VectorXd::Zero(4);
 
-		int i = t / dt_;
-		std::cout << i << std::endl;
+		auto S = drake::math::ContinuousAlgebraicRiccatiEquation(As_(0), Bs_(0), Q_, R_);
+		//std::cout << "S:\n" << S << std::endl << std::endl;
+		Eigen::VectorXd x_d(12);
+		x_d << 0, 0, 1.0, 0, 0, 0,
+					 0, 0,   0, 0, 0, 0;
 	
-		/*auto B = Bs_(i);
-		auto S = Ss_(i);
+		if (false)
+		{
+		  int i = t / dt_;
+			auto B = Bs_(i);
+			auto S = Ss_(i);
 
-		Eigen::MatrixXd K = - R_.inverse() * B.transpose() * S;*/
+			//std::cout << B << std::endl << std::endl;
+			//std::cout << S << std::endl << std::endl;
 
+			//Eigen::MatrixXd K = - R_.inverse() * B.transpose() * S;
+			//*output = K * input;
+			//std::cout << input << std::endl << std::endl;
+		}
+		else
+		{
+			Eigen::MatrixXd K = R_.inverse() * Bs_(0).transpose() * S;
+			*output = - K * (input - x_d) + feed_forward_;
+			//std::cout << "error:\n" << input - x_d << std::endl << std::endl;
+			std::cout << "-K*x\n" << *output << std::endl << std::endl;
+		}
 	}
 
 	/*Eigen::Vector3d pos_ = Eigen::VectorXd(input.segment(0,3));
@@ -81,10 +101,10 @@ namespace controller
 			thDt_(Variable("thDt")),
 			psiDt_(Variable("psiDt")),
 
-			u_th_(Variable("u_th")),
-			u_x_(Variable("u_x")), 
-			u_y_(Variable("u_y")), 
-			u_z_(Variable("u_z"))
+			u0_(Variable("u0")),
+			u1_(Variable("u1")), 
+			u2_(Variable("u2")), 
+			u3_(Variable("u3"))
 	{
 		// Set state vector
 		state_.resize(12);
@@ -94,10 +114,11 @@ namespace controller
 							phiDt_, thDt_, psiDt_;
 
 		input_.resize(4);
-		input_ << u_th_,
-							u_x_,
-							u_y_,
-							u_z_;
+		input_ << u0_,
+						  u1_,
+						  u2_,
+						  u3_;
+
 
 		// Calculate derivatives
 		Eigen::Vector3<Expression> rDt(xDt_, yDt_, zDt_);			 // Position Dt
@@ -130,9 +151,11 @@ namespace controller
 			double start_time, double end_time, double dt
 			)
 	{
+		double hover_thrust = m_ * g_;
+ 
 		drake::symbolic::Environment curr_state{{x_,     0},
 																						{y_,     0},
-																						{z_,     0},
+																						{z_,     1},
 																						{phi_,   0},
 																						{th_,    0},
 																						{psi_,   0},
@@ -142,10 +165,10 @@ namespace controller
 																						{phiDt_, 0},
 																						{thDt_,  0},
 																						{psiDt_, 0},
-																						{u_th_,  0},
-																						{u_x_,   0},
-																						{u_y_,   0},
-																						{u_z_,   0}};
+																						{u0_,    hover_thrust/4},
+																						{u1_,    hover_thrust/4},
+																						{u2_,    hover_thrust/4},
+																						{u3_,    hover_thrust/4}};
 
 		dt_ = dt;
 		start_time_ = start_time;
@@ -157,12 +180,18 @@ namespace controller
 		Eigen::VectorX<Eigen::MatrixXd> Ss(N_);
 
 		Eigen::MatrixXd Q = Eigen::MatrixXd::Identity(12, 12);
+		Q(0,0) = 30;
+		Q(1,1) = 30;
+		Q(2,2) = 30;
 		Eigen::MatrixXd R = Eigen::MatrixXd::Identity(4, 4);
 
 		Eigen::MatrixXd Q_f = Eigen::MatrixXd::Identity(12, 12);
 		Ss(N_ - 1) = Q_f;
 		As(N_ - 1) = eval_A(curr_state);
 		Bs(N_ - 1) = eval_B(curr_state);
+
+		//std::cout << "A:\n" << As(N_-1) << std::endl << std::endl;
+		//std::cout << "B:\n" << Bs(N_-1) << std::endl << std::endl;
 		
 		// Note: Integrating backwards
 		for (int i = N_ - 1; i > 0; --i)
@@ -184,7 +213,7 @@ namespace controller
 		}
 
 		return std::make_unique<DrakeControllerTVLQR>(
-				As, Bs, Ss, Q, R, dt_
+				As, Bs, Ss, Q, R, hover_thrust, dt_
 				);
 	}
 
@@ -197,10 +226,10 @@ namespace controller
 
 		R_z << cos(psi_), -sin(psi_), 0,
 					 sin(psi_),  cos(psi_), 0,
-			        	  0,         0, 1;
+			        	   0,          0, 1;
 
 		R_y << cos(th_), 0, sin(th_),
-					       0, 1,       0,
+					        0, 1,        0,
 					-sin(th_), 0, cos(th_);
 
 		R_x << 1,        0,         0,
@@ -210,9 +239,11 @@ namespace controller
 		// R_NB is rotation from Body frame B to Newtonian frame N
 		Eigen::Matrix3<drake::symbolic::Expression> R_NB = R_z * R_y * R_x;
 		
+		drake::symbolic::Expression u_th = u0_ + u1_ + u2_ + u3_;
+
 		// Positional dynamics
 		Eigen::Vector3<drake::symbolic::Expression> rDDt =
-			Eigen::Vector3d(0,0,-g_) + (u_th_ / m_) * R_NB * Eigen::Vector3d(0,0,1);
+			Eigen::Vector3d(0,0,-g_) + (u_th / m_) * R_NB * Eigen::Vector3d(0,0,1);
 		
 		return rDDt;
 	} 
@@ -220,7 +251,19 @@ namespace controller
 	Eigen::Vector3<drake::symbolic::Expression> ControllerTVLQR::get_wDDt()
 	{
 		Eigen::Vector3<Expression> rpy(phiDt_, thDt_, psiDt_);
-		Eigen::Vector3<Expression> tau_c(u_x_, u_y_, u_z_);
+		Eigen::MatrixXd forces_to_torques(3,4);
+
+		double k_f = 1.0;
+		double L = 0.2;
+		double k_m = 0.0245; // TODO move
+
+		forces_to_torques << 0, k_f * L, 0, - k_f * L,
+												 - k_f * L, 0, k_f * L, 0,
+												 k_m, - k_m, k_m, - k_m;
+
+		Eigen::Vector3<Expression> tau_c = forces_to_torques * input_;
+
+
 		Eigen::Vector3<Expression> wDDt =
 			inertia_.inverse() * (rpy.cross(inertia_ * rpy)) + tau_c;
 

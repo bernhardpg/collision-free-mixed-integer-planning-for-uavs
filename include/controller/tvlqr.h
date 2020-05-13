@@ -5,6 +5,7 @@
 #include <drake/systems/framework/vector_system.h>
 #include <drake/common/symbolic.h>
 #include <drake/common/symbolic_expression.h>
+#include <drake/math/continuous_algebraic_riccati_equation.h>
 
 namespace controller
 {
@@ -17,6 +18,7 @@ namespace controller
 					const Eigen::VectorX<Eigen::MatrixXd> Ss,
 					const Eigen::MatrixXd Q,
 					const Eigen::MatrixXd R,
+					double hover_thrust,
 					const double dt
 					);
 
@@ -33,7 +35,9 @@ namespace controller
 			const Eigen::VectorX<Eigen::MatrixXd> Ss_;
 			const Eigen::MatrixXd Q_;
 			const Eigen::MatrixXd R_;
-			double dt_;
+			const Eigen::VectorXd feed_forward_;
+			const double N_;
+			const double dt_;
 	};
 
 
@@ -62,10 +66,10 @@ namespace controller
 			const drake::symbolic::Variable thDt_;
 			const drake::symbolic::Variable psiDt_;
 
-			const drake::symbolic::Variable u_th_;
-			const drake::symbolic::Variable u_x_;
-			const drake::symbolic::Variable u_y_;
-			const drake::symbolic::Variable u_z_;
+			const drake::symbolic::Variable u0_; // Propeller force 0
+			const drake::symbolic::Variable u1_; // Propeller force 1
+			const drake::symbolic::Variable u2_; // Propeller force 2
+			const drake::symbolic::Variable u3_; // Propeller force 3
 
 			int N_;
 			double start_time_;
