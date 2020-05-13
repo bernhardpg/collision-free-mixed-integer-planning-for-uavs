@@ -111,6 +111,7 @@
     </collision>
    </link>
 
+	<!--
    <link name="obs4">
    	<inertial>
    		<mass value=".5" />
@@ -133,6 +134,13 @@
     </collision>
    </link>
 
+		<joint name="obs4_to_ground" type="fixed">
+			<parent link="ground"/>
+			<child link="obs4"/>
+			<origin xyz="0 0 0"/>
+		</joint>
+	-->
+
 		<joint name="obs2_to_ground" type="fixed">
 			<parent link="ground"/>
 			<child link="obs2"/>
@@ -151,10 +159,5 @@
 			<origin xyz="0 0 0"/>
 		</joint>
 
-		<joint name="obs4_to_ground" type="fixed">
-			<parent link="ground"/>
-			<child link="obs4"/>
-			<origin xyz="0 0 0"/>
-		</joint>
 
 </robot>

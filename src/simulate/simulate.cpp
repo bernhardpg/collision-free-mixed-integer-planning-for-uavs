@@ -6,82 +6,6 @@ DEFINE_double(simulation_time, 10, "How long to simulate the pendulum");
 DEFINE_double(max_time_step, 1.0e-3,
               "Simulation time step used for integrator.");
 
-void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
-{
-	// ****
-	// Get convex regions using IRIS
-	// ****
-
-	// Add seedpoints
-	std::vector<Eigen::Vector3d> seed_points;
-	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
-	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
-	seed_points.push_back(Eigen::Vector3d(-2,3.5,0.5));
-	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
-	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
-
-	trajopt::SafeRegions safe_regions(3);
-	// Matches 'ground' object in obstacles.urdf
-	safe_regions.set_bounds(-5, 5, -2.5, 12.5, 0, 2);
-	safe_regions.set_obstacles(obstacles);
-	//safe_regions.calc_safe_regions_from_seedpoints(seed_points);
-	safe_regions.calc_safe_regions_auto(8);
-	auto safe_region_As = safe_regions.get_As();
-	auto safe_region_bs = safe_regions.get_bs();
-
-	std::cout << "Calculated safe regions" << std::endl;
-	//plot_3d_obstacles_footprints(obstacles);
-	//plot_3d_regions_footprint(safe_regions.get_polyhedrons());
-
-	// ********************
-	// Calculate trajectory
-	// ********************
-
-	int num_vars = 3;
-	int num_traj_segments = 8;
-	int degree = 3;
-	int cont_degree = 2;
-
-	Eigen::VectorX<double> init_pos(num_vars);
-	Eigen::VectorX<double> final_pos(num_vars);
-	init_pos << 0.0, 0.0, 1.0;
-	final_pos << 0.0, 6.5, 1.0;
-
-	auto traj_3rd_deg = trajopt::MISOSProblem(
-			num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos
-			);
-	traj_3rd_deg.add_convex_regions(safe_region_As, safe_region_bs);
-	traj_3rd_deg.create_region_binary_variables();
-	traj_3rd_deg.generate();
-	Eigen::MatrixX<int> safe_region_assignments = traj_3rd_deg.get_region_assignments();
-	std::cout << "Found 3rd order trajectory" << std::endl;
-
-	// Create trajectory with degree 5 with fixed region constraints
-	degree = 5;
-	cont_degree = 4;
-
-	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
-	traj.add_convex_regions(safe_region_As, safe_region_bs);
-	traj.add_safe_region_assignments(safe_region_assignments);
-	traj.generate();
-	std::cout << "Found 5th order trajectory" << std::endl;
-
-	// TODO cleanup
-	// Visualize trajectory
-
-  std::vector<std::string> names;
-  std::vector<Eigen::Isometry3d> poses;
-  for (double t = 0.0; t < (double)num_traj_segments; t += 0.1) {
-    names.push_back("X" + std::to_string(int(t * 100)));
-    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    pose.translation() = traj.eval(t);
-    poses.push_back(pose);
-  }
-	drake::lcm::DrakeLcm lcm;
-  PublishFramesToLcm("DRAKE_DRAW_TRAJECTORY", poses, names, &lcm);
-
-}
-
 DrakeSimulation::DrakeSimulation(
 			double m,
 			double arm_length,
@@ -94,12 +18,14 @@ DrakeSimulation::DrakeSimulation(
 		arm_length_(arm_length),
 		inertia_(inertia),
 		k_f_(k_f),
-		k_m_(k_m),
-		scene_graph_(builder_.AddSystem<drake::geometry::SceneGraph<double>>()),
-		plant_(builder_.AddSystem<drake::multibody::MultibodyPlant<double>>(0.0))
+		k_m_(k_m)
 {
+	auto pair = drake::multibody::AddMultibodyPlantSceneGraph(&builder_, 0.0);
+	scene_graph_ = &pair.scene_graph;
+	plant_ = &pair.plant;
+
 	// Add obstacles from file
-	drake::multibody::Parser parser(plant_);
+	drake::multibody::Parser parser(plant_, scene_graph_);
 	auto obstacle_model = parser.AddModelFromFile("obstacles.urdf");
 	plant_->WeldFrames(
 			plant_->world_frame(), plant_->GetFrameByName("ground", obstacle_model));
@@ -203,7 +129,7 @@ void simulate()
 	auto obstacles = obst_sim.get_obstacles();
 
 	// Calculate trajectory
-	//find_trajectory(obstacles);
+	find_trajectory(obstacles);
 
 	// Initial conditions
 	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
@@ -216,8 +142,83 @@ void simulate()
 
 	// Build the real simulation
 	auto sim = DrakeSimulation(m, arm_length, inertia, k_f_, k_m_);
-	sim.connect_to_drake_visualizer();
 	sim.add_controller_tvlqr();
+	sim.connect_to_drake_visualizer();
 	sim.build_quadrotor_diagram();
 	sim.run_simulation(x0);
+}
+
+void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
+{
+	// Get convex safe regions
+	trajopt::SafeRegions safe_regions(3);
+	// Matches 'ground' object in obstacles.urdf
+	safe_regions.set_bounds(-5, 5, -2.5, 12.5, 0, 2);
+	safe_regions.set_obstacles(obstacles);
+
+	// Calc regions from seed points to save time
+	std::vector<Eigen::Vector3d> seed_points;
+	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
+	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(-2,3.5,0.5));
+	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
+	safe_regions.calc_safe_regions_from_seedpoints(seed_points);
+
+	//safe_regions.calc_safe_regions_auto(8);
+	auto safe_region_As = safe_regions.get_As();
+	auto safe_region_bs = safe_regions.get_bs();
+
+	std::cout << "Calculated safe regions" << std::endl;
+	//plot_3d_obstacles_footprints(obstacles);
+	//plot_3d_regions_footprint(safe_regions.get_polyhedrons());
+
+	// ********************
+	// Calculate trajectory
+	// ********************
+
+	int num_vars = 3;
+	int num_traj_segments = 8;
+	int degree = 3;
+	int cont_degree = 2;
+
+	Eigen::VectorX<double> init_pos(num_vars);
+	Eigen::VectorX<double> final_pos(num_vars);
+	init_pos << 0.0, 0.0, 1.0;
+	final_pos << 0.0, 6.5, 1.0;
+
+	auto traj_3rd_deg = trajopt::MISOSProblem(
+			num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos
+			);
+	traj_3rd_deg.add_convex_regions(safe_region_As, safe_region_bs);
+	traj_3rd_deg.create_region_binary_variables();
+	traj_3rd_deg.generate();
+	Eigen::MatrixX<int> safe_region_assignments = traj_3rd_deg.get_region_assignments();
+	std::cout << "Found 3rd order trajectory" << std::endl;
+
+	// Create trajectory with degree 5 with fixed region constraints
+	degree = 5;
+	cont_degree = 4;
+
+	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
+	traj.add_convex_regions(safe_region_As, safe_region_bs);
+	traj.add_safe_region_assignments(safe_region_assignments);
+	traj.generate();
+	std::cout << "Found 5th order trajectory" << std::endl;
+
+	// TODO cleanup
+	// Visualize trajectory
+
+	// Publish to visualizer
+  std::vector<std::string> names;
+  std::vector<Eigen::Isometry3d> poses;
+  for (double t = 0.0; t < (double)num_traj_segments; t += 0.1) {
+    names.push_back("X" + std::to_string(int(t * 100)));
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
+    pose.translation() = traj.eval(t);
+    poses.push_back(pose);
+  }
+	drake::lcm::DrakeLcm lcm;
+  PublishFramesToLcm("DRAKE_DRAW_TRAJECTORY", poses, names, &lcm);
+
 }
