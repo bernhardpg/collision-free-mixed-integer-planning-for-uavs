@@ -51,11 +51,6 @@ target_link_libraries(${PROJECT_NAME} tests)
 target_link_libraries(${PROJECT_NAME} trajopt)
 target_link_libraries(${PROJECT_NAME} simulate)
 
-# TODO remove
-add_executable(test_visualizer src/test_visualize.cpp)
-target_link_libraries(test_visualizer drake::drake)
-target_link_libraries(test_visualizer gflags)
-
 add_library(trajopt src/trajopt/MISOSProblem.cpp src/trajopt/PPTrajectory.cpp src/trajopt/safe_regions.cpp)
 target_link_libraries(trajopt drake::drake)
 target_link_libraries(trajopt Eigen3::Eigen)
@@ -79,6 +74,10 @@ target_link_libraries(simulate Eigen3::Eigen)
 target_link_libraries(simulate gflags)
 target_link_libraries(simulate geometry)
 target_link_libraries(simulate publish_trajectory)
+
+add_library(controller src/controller/tvlqr.cpp)
+target_link_libraries(controller Eigen3::Eigen)
+target_link_libraries(controller drake::drake)
 
 add_library(geometry src/tools/geometry.cpp)
 target_link_libraries(geometry drake::drake)
