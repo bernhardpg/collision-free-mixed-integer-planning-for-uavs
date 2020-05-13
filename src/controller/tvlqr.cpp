@@ -65,10 +65,15 @@ namespace controller
 		}
 	}
 
-	ControllerTVLQR::ControllerTVLQR(double m, Eigen::Matrix3d inertia)
+	ControllerTVLQR::ControllerTVLQR(
+					double m, double arm_length, Eigen::Matrix3d inertia, double k_f, double k_m
+			)
 		:
 			g_(9.81),
 			m_(m),
+			arm_length_(arm_length),
+			k_f_(k_f),
+			k_m_(k_m),
 			inertia_(inertia),
 
 			x_(Variable("x")),
@@ -176,8 +181,8 @@ namespace controller
 		As(N_ - 1) = eval_A(curr_state);
 		Bs(N_ - 1) = eval_B(curr_state);
 
-		//std::cout << "A:\n" << As(N_-1) << std::endl << std::endl;
-		//std::cout << "B:\n" << Bs(N_-1) << std::endl << std::endl;
+		//std::cout << "a:\n" << as(n_-1) << std::endl << std::endl;
+		//std::cout << "b:\n" << bs(n_-1) << std::endl << std::endl;
 		
 		// Note: Integrating backwards
 		for (int i = N_ - 1; i > 0; --i)
@@ -239,13 +244,9 @@ namespace controller
 		Eigen::Vector3<Expression> rpy(phiDt_, thDt_, psiDt_);
 		Eigen::MatrixXd forces_to_torques(3,4);
 
-		double k_f = 1.0;
-		double L = 0.2;
-		double k_m = 0.0245; // TODO move
-
-		forces_to_torques << 0, k_f * L, 0, - k_f * L,
-												 - k_f * L, 0, k_f * L, 0,
-												 k_m, - k_m, k_m, - k_m;
+		forces_to_torques << 0, k_f_ * arm_length_, 0, - k_f_ * arm_length_,
+												 - k_f_ * arm_length_, 0, k_f_ * arm_length_, 0,
+												 k_m_, - k_m_, k_m_, - k_m_;
 
 		Eigen::Vector3<Expression> tau_c = forces_to_torques * input_;
 

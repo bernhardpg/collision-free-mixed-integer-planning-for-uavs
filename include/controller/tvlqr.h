@@ -45,7 +45,9 @@ namespace controller
 	class ControllerTVLQR
 	{
 		public:
-			ControllerTVLQR(double m, Eigen::Matrix3d inertia);
+			ControllerTVLQR(
+					double m, double arm_length, Eigen::Matrix3d inertia, double k_f, double k_m
+					);
 			std::unique_ptr<DrakeControllerTVLQR> construct_drake_controller(
 					double start_time, double end_time, double dt
 					);
@@ -78,6 +80,9 @@ namespace controller
 			double dt_;
 			const double g_;
 			const double m_;
+			const double arm_length_;
+			const double k_f_;
+			const double k_m_;
 			const Eigen::Matrix3d inertia_;
 
 			Eigen::VectorX<drake::symbolic::Variable> state_;

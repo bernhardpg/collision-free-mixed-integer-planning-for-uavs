@@ -34,7 +34,11 @@ class DrakeSimulation
 {
 	public:
 		DrakeSimulation(
-				double m, double arm_length, Eigen::Matrix3d inertia
+				double m,
+				double arm_length,
+				Eigen::Matrix3d inertia,
+				double k_f,
+				double k_m
 				);
 
 	void build_quadrotor_diagram();
@@ -47,6 +51,8 @@ class DrakeSimulation
 		double m_;
 		double arm_length_;
 		Eigen::MatrixXd inertia_;
+		double k_f_;
+		double k_m_;
 
 		drake::systems::DiagramBuilder<double> builder_;
 		drake::geometry::SceneGraph<double>* scene_graph_;

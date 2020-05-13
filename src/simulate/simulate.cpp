@@ -83,12 +83,18 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 }
 
 DrakeSimulation::DrakeSimulation(
-		double m, double arm_length, Eigen::Matrix3d inertia
+			double m,
+			double arm_length,
+			Eigen::Matrix3d inertia,
+			double k_f,
+			double k_m
 		)
 	:
 		m_(m),
 		arm_length_(arm_length),
 		inertia_(inertia),
+		k_f_(k_f),
+		k_m_(k_m),
 		scene_graph_(builder_.AddSystem<drake::geometry::SceneGraph<double>>()),
 		plant_(builder_.AddSystem<drake::multibody::MultibodyPlant<double>>(0.0))
 {
@@ -102,7 +108,7 @@ DrakeSimulation::DrakeSimulation(
 	// Load quadrotor model
 	quadrotor_plant_ = builder_
 		.AddSystem<drake::examples::quadrotor::QuadrotorPlant<double>>(
-				m_, arm_length_, inertia_, 1, 0.0245
+				m_, arm_length_, inertia_, k_f_, k_m_
 				);
 	quadrotor_plant_->set_name("quadrotor");
 	drake::examples::quadrotor::QuadrotorGeometry::AddToBuilder(
@@ -142,7 +148,7 @@ std::vector<Eigen::Matrix3Xd> DrakeSimulation::get_obstacles()
 
 void DrakeSimulation::add_controller_tvlqr()
 {
-	auto tvlqr_constructor = controller::ControllerTVLQR(m_, inertia_);
+	auto tvlqr_constructor = controller::ControllerTVLQR(m_, arm_length_, inertia_, k_f_, k_m_);
 	controller_tvlqr_ = builder_.AddSystem(
 			tvlqr_constructor.construct_drake_controller(0.0, FLAGS_simulation_time, 0.01)
 			);
@@ -188,9 +194,11 @@ void simulate()
 				0, 0, 0.12; // From .urdf file
 	double m = 2.856;
 	double arm_length = 0.2;
+	double k_f_ = 1.0;
+	double k_m_ = 0.0245;
 
 	// Build the simulation first to get the obstacles
-	auto obst_sim = DrakeSimulation(m, arm_length, inertia);
+	auto obst_sim = DrakeSimulation(m, arm_length, inertia, k_f_, k_m_);
 	obst_sim.build_quadrotor_diagram();
 	auto obstacles = obst_sim.get_obstacles();
 
@@ -207,45 +215,9 @@ void simulate()
 				0,0,0;*/
 
 	// Build the real simulation
-	auto sim = DrakeSimulation(m, arm_length, inertia);
+	auto sim = DrakeSimulation(m, arm_length, inertia, k_f_, k_m_);
 	sim.connect_to_drake_visualizer();
 	sim.add_controller_tvlqr();
 	sim.build_quadrotor_diagram();
 	sim.run_simulation(x0);
-
-	//std::cout << "Stopping\n";
-	//return;
-
-	// ********
-	// Simulate
-	// ********
-
-	/*
-	drake::systems::Simulator<double> simulator(*diagram);
-
-	// Initial conditions
-	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
-	x0 = Eigen::VectorX<double>::Random(12);
-	x0 << 0,0,1,
-				0,0,0,
-				0,0,0,
-				0,0,0;
-
-	// To set initial values for the simulation:
-	// * Get the Diagram's context.
-	// * Get the part of the Diagram's context associated with particle_plant.
-	// * Get the part of the particle_plant's context associated with state.
-	// * Fill the state with initial values.
-	drake::systems::Context<double>& simulator_context = simulator.get_mutable_context();
-	drake::systems::Context<double>& quadrotor_plant_context =
-			diagram->GetMutableSubsystemContext(*quadrotor_plant, &simulator_context);
-
-	quadrotor_plant_context.get_mutable_continuous_state_vector().SetFromVector(x0);
-
-	simulator.Initialize();
-	simulator.set_target_realtime_rate(FLAGS_target_realtime_rate);
-	simulator.AdvanceTo(FLAGS_simulation_time); // seconds
-
-	//auto logger = builder.AddSystem<drake::systems::SignalLogger<double>>(4);
-	*/
 }
