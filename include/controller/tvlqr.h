@@ -1,16 +1,24 @@
 #pragma once
 
-#include <drake/systems/framework/vector_system.h>
-#include "drake/common/symbolic.h"
-#include <drake/common/symbolic_expression.h>
+#include <memory>
 #include <Eigen/Core>
+#include <drake/systems/framework/vector_system.h>
+#include <drake/common/symbolic.h>
+#include <drake/common/symbolic_expression.h>
 
 namespace controller
 {
-	class ControllerTVLQR : public drake::systems::VectorSystem<double>
+	class DrakeControllerTVLQR : public drake::systems::VectorSystem<double>
 	{
 		public:
-			ControllerTVLQR() : drake::systems::VectorSystem<double>(12,4) {};
+			DrakeControllerTVLQR(
+					const Eigen::VectorX<Eigen::MatrixXd> As,
+					const Eigen::VectorX<Eigen::MatrixXd> Bs,
+					const Eigen::VectorX<Eigen::MatrixXd> Ss,
+					const Eigen::MatrixXd Q,
+					const Eigen::MatrixXd R,
+					const double dt
+					);
 
 		private:
 			void DoCalcVectorOutput	(
@@ -19,13 +27,21 @@ namespace controller
 					const Eigen::VectorBlock<const drake::VectorX<double>>& state,
 					Eigen::VectorBlock<drake::VectorX<double>>* output
 			) const override;
+
+			const Eigen::VectorX<Eigen::MatrixXd> As_;
+			const Eigen::VectorX<Eigen::MatrixXd> Bs_;
+			const Eigen::VectorX<Eigen::MatrixXd> Ss_;
+			const Eigen::MatrixXd Q_;
+			const Eigen::MatrixXd R_;
+			double dt_;
 	};
 
-	class ControllerConstructor
+
+	class ControllerTVLQR
 	{
 		public:
-			ControllerConstructor(double m, Eigen::Matrix3d inertia);
-			void construct_TVLQR(
+			ControllerTVLQR(double m, Eigen::Matrix3d inertia);
+			std::unique_ptr<DrakeControllerTVLQR> construct_drake_controller(
 					double start_time, double end_time, double dt
 					);
 
@@ -51,6 +67,10 @@ namespace controller
 			const drake::symbolic::Variable u_y_;
 			const drake::symbolic::Variable u_z_;
 
+			int N_;
+			double start_time_;
+			double end_time_;
+			double dt_;
 			const double g_;
 			const double m_;
 			const Eigen::Matrix3d inertia_;

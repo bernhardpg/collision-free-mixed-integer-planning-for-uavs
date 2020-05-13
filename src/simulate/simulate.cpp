@@ -140,6 +140,7 @@ void simulate()
 	drake::geometry::ConnectDrakeVisualizer(&builder, scene_graph);
 	//drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
 
+	/*
 	auto diagram = builder.Build();
 
 	// *****
@@ -157,16 +158,26 @@ void simulate()
 
 	auto obstacle_geometries = geometry::getObstacleGeometries(&plant);
 	std::vector<Eigen::Matrix3Xd> obstacles = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
+	*/
 
 	// ********
 	// Calculate trajectory
 	// ********
 
 	//find_trajectory(obstacles);
-	auto constructor = controller::ControllerConstructor(m, inertia);
-	constructor.construct_TVLQR(0.0, FLAGS_simulation_time, 0.01);
-	std::cout << "Stopping\n";
-	return;
+	auto tvlqr_constructor = controller::ControllerTVLQR(m, inertia);
+	auto tvlqr_controller = builder.AddSystem(tvlqr_constructor.construct_drake_controller(0.0, FLAGS_simulation_time, 0.01));
+	tvlqr_controller->set_name("TVLQR");
+	auto logger = builder.AddSystem<drake::systems::SignalLogger<double>>(4);
+
+	builder.Connect(quadrotor_plant->get_output_port(0), tvlqr_controller->get_input_port());
+	builder.Connect(tvlqr_controller->get_output_port(), logger->get_input_port());
+
+	auto diagram = builder.Build();
+
+
+	//std::cout << "Stopping\n";
+	//return;
 
 	// ********
 	// Simulate

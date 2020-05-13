@@ -6,7 +6,60 @@ using drake::symbolic::Variable;
 
 namespace controller
 {
-	ControllerConstructor::ControllerConstructor(double m, Eigen::Matrix3d inertia)
+
+	DrakeControllerTVLQR::DrakeControllerTVLQR(
+			const Eigen::VectorX<Eigen::MatrixXd> As,
+			const Eigen::VectorX<Eigen::MatrixXd> Bs,
+			const Eigen::VectorX<Eigen::MatrixXd> Ss,
+			const Eigen::MatrixXd Q,
+			const Eigen::MatrixXd R,
+			const double dt
+			)
+		: drake::systems::VectorSystem<double>(12,4),
+		As_(As),
+		Bs_(Bs),
+		Ss_(Ss),
+		Q_(Q),
+		R_(R),
+		dt_(dt)
+	{}
+
+	void DrakeControllerTVLQR::DoCalcVectorOutput	(
+			const drake::systems::Context<double>& context,
+			const Eigen::VectorBlock<const drake::VectorX<double>>& input,
+			const Eigen::VectorBlock<const drake::VectorX<double>>& state,
+			Eigen::VectorBlock<drake::VectorX<double>>* output
+	) const
+	{
+		double t = context.get_time();
+		*output = Eigen::VectorXd::Zero(4);
+
+		int i = t / dt_;
+		std::cout << i << std::endl;
+	
+		/*auto B = Bs_(i);
+		auto S = Ss_(i);
+
+		Eigen::MatrixXd K = - R_.inverse() * B.transpose() * S;*/
+
+	}
+
+	/*Eigen::Vector3d pos_ = Eigen::VectorXd(input.segment(0,3));
+	Eigen::Vector3d pos_dot_ = Eigen::VectorXd(input.segment(3,3));
+	Eigen::Vector3d att_euler = Eigen::VectorXd(input.segment(6,3));
+	Eigen::Vector3d w_ = Eigen::VectorXd(input.segment(9,3));
+
+	std::cout << att_euler << std::endl << std::endlm*/
+
+	/*
+	pos_ = input.template block<3,1>(0);
+	pos_dot_ = input.template block<3,1>(3);
+	auto att_euler = input.template block<3,1>(6);
+	w_ = input.template block<3,1>(9);
+	*/
+	
+
+	ControllerTVLQR::ControllerTVLQR(double m, Eigen::Matrix3d inertia)
 		:
 			g_(9.81),
 			m_(m),
@@ -61,42 +114,19 @@ namespace controller
 		// Calculate linear system
 		A_ = drake::symbolic::Jacobian(stateDt_, state_);
 		B_ = drake::symbolic::Jacobian(stateDt_, input_);
-
-		drake::symbolic::Environment at_origin {{x_,     0},
-																						{y_,     0},
-																						{z_,     0},
-																						{phi_,   0},
-																						{th_,    0},
-																						{psi_,   0},
-																						{xDt_,   0},
-																						{yDt_,   0},
-																						{zDt_,   0},
-																						{phiDt_, 0},
-																						{thDt_,  0},
-																						{psiDt_, 0},
-																						{u_th_,  0},
-																						{u_x_,   0},
-																						{u_y_,   0},
-																						{u_z_,   0}};
-
-		std::cout << "A: " << A_.rows() << " x " << A_.cols() << std::endl;
-		std::cout << eval_A(at_origin);
-
-		std::cout << "B: " << B_.rows() << " x " << B_.cols() << std::endl;
-		std::cout << eval_B(at_origin);
 	}
 
-	Eigen::MatrixXd ControllerConstructor::eval_A(drake::symbolic::Environment curr_state)
+	Eigen::MatrixXd ControllerTVLQR::eval_A(drake::symbolic::Environment curr_state)
 	{
 		return drake::symbolic::Evaluate(A_, curr_state);
 	}
 
-	Eigen::MatrixXd ControllerConstructor::eval_B(drake::symbolic::Environment curr_state)
+	Eigen::MatrixXd ControllerTVLQR::eval_B(drake::symbolic::Environment curr_state)
 	{
 		return drake::symbolic::Evaluate(B_, curr_state);
 	}
 
-	void ControllerConstructor::construct_TVLQR(
+	std::unique_ptr<DrakeControllerTVLQR> ControllerTVLQR::construct_drake_controller(
 			double start_time, double end_time, double dt
 			)
 	{
@@ -117,22 +147,25 @@ namespace controller
 																						{u_y_,   0},
 																						{u_z_,   0}};
 
-		int N = (end_time - start_time) / dt;
+		dt_ = dt;
+		start_time_ = start_time;
+		end_time_ = end_time;
+		N_ = (end_time_ - start_time_) / dt_;
 
-		Eigen::VectorX<Eigen::MatrixXd> As(N);
-		Eigen::VectorX<Eigen::MatrixXd> Bs(N);
-		Eigen::VectorX<Eigen::MatrixXd> Ss(N);
+		Eigen::VectorX<Eigen::MatrixXd> As(N_);
+		Eigen::VectorX<Eigen::MatrixXd> Bs(N_);
+		Eigen::VectorX<Eigen::MatrixXd> Ss(N_);
 
 		Eigen::MatrixXd Q = Eigen::MatrixXd::Identity(12, 12);
 		Eigen::MatrixXd R = Eigen::MatrixXd::Identity(4, 4);
 
 		Eigen::MatrixXd Q_f = Eigen::MatrixXd::Identity(12, 12);
-		Ss(N-1) = Q_f;
-		As(N-1) = eval_A(curr_state);
-		Bs(N-1) = eval_B(curr_state);
+		Ss(N_ - 1) = Q_f;
+		As(N_ - 1) = eval_A(curr_state);
+		Bs(N_ - 1) = eval_B(curr_state);
 		
 		// Note: Integrating backwards
-		for (int i = N - 1; i > 0; --i)
+		for (int i = N_ - 1; i > 0; --i)
 		{
 			// TODO update state from trajectory
 
@@ -143,15 +176,19 @@ namespace controller
 				+ Q;
 
 			// Forward Euler to integrate S backwards
-			Ss(i - 1) = Ss(i) + dt * neg_SDt;
+			Ss(i - 1) = Ss(i) + dt_ * neg_SDt;
 
 			// Evaluate linearization for next time step
 			As(i - 1) = eval_A(curr_state);
 			Bs(i - 1) = eval_B(curr_state);
 		}
+
+		return std::make_unique<DrakeControllerTVLQR>(
+				As, Bs, Ss, Q, R, dt_
+				);
 	}
 
-	Eigen::Vector3<drake::symbolic::Expression> ControllerConstructor::get_rDDt()
+	Eigen::Vector3<drake::symbolic::Expression> ControllerTVLQR::get_rDDt()
 	{
 		// Calculate rotation matrices
 		Eigen::Matrix3<Expression> R_z;
@@ -180,7 +217,7 @@ namespace controller
 		return rDDt;
 	} 
 
-	Eigen::Vector3<drake::symbolic::Expression> ControllerConstructor::get_wDDt()
+	Eigen::Vector3<drake::symbolic::Expression> ControllerTVLQR::get_wDDt()
 	{
 		Eigen::Vector3<Expression> rpy(phiDt_, thDt_, psiDt_);
 		Eigen::Vector3<Expression> tau_c(u_x_, u_y_, u_z_);
