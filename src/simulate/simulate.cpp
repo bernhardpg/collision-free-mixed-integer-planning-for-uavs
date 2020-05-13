@@ -98,9 +98,9 @@ void simulate()
 	double arm_length = 0.2;
 
 	// **********
-	// Build diagram 
+	// Build diagram
 	// **********
-	
+
 	DRAKE_DEMAND(FLAGS_simulation_time > 0);
 
 	// Setup diagram
@@ -136,14 +136,14 @@ void simulate()
 	builder.Connect(quadrotor_plant->get_output_port(0), lqr_controller->get_input_port());
   builder.Connect(lqr_controller->get_output_port(), quadrotor_plant->get_input_port(0));
 
-	// Connect to 3D visualization 
+	// Connect to 3D visualization
 	drake::geometry::ConnectDrakeVisualizer(&builder, scene_graph);
 	//drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
 
 	auto diagram = builder.Build();
 
 	// *****
-	// Get obstacle vertices 
+	// Get obstacle vertices
 	// *****
 
 	// Get query_object to pass geometry queries to (needs root context from diagram)
@@ -162,8 +162,9 @@ void simulate()
 	// Calculate trajectory
 	// ********
 
-	find_trajectory(obstacles);
-	
+	//find_trajectory(obstacles);
+	controller::construct_controller_tvlqr();
+
 	// ********
 	// Simulate
 	// ********

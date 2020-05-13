@@ -70,6 +70,8 @@ target_link_libraries(tests plotter)
 
 add_library(simulate src/simulate/simulate.cpp)
 target_link_libraries(simulate drake::drake)
+target_link_libraries(simulate trajopt)
+target_link_libraries(simulate controller)
 target_link_libraries(simulate Eigen3::Eigen)
 target_link_libraries(simulate gflags)
 target_link_libraries(simulate geometry)

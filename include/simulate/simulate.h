@@ -23,6 +23,7 @@
 #include "tools/geometry.h"
 #include "trajopt/safe_regions.h"
 #include "trajopt/MISOSProblem.h"
+#include "controller/tvlqr.h"
 #include "plot/plotter.h"
 #include "simulate/publish_trajectory.h"
 
