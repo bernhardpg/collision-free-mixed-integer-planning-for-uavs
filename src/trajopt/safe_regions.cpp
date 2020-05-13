@@ -63,11 +63,6 @@ void SafeRegions::set_bounds(
 }
 
 
-void SafeRegions::set_seedpoints(std::vector<Eigen::Vector3d> seedpoints)
-{
-	seedpoints_ = seedpoints;
-}
-
 void SafeRegions::set_obstacles(std::vector<Eigen::Matrix3Xd> obstacles)
 {
 	for (auto obstacle : obstacles)
@@ -97,11 +92,6 @@ void SafeRegions::set_obstacles(std::vector<Eigen::Matrix3Xd> obstacles)
 			x_max = std::max(x_max, vertex(0));
 			y_max = std::max(y_max, vertex(1));
 			z_max = std::max(z_max, vertex(2));
-
-//			std::cout << "current obstacle:\n" << obstacle << std::endl;
-//			std::cout << x_min << ", " << x_max << std::endl;
-//			std::cout << y_min << ", " << y_max << std::endl;
-//			std::cout << z_min << ", " << z_max << std::endl;
 		}
 
 		auto pair = halfspace_from_bounds(x_min, x_max, y_min, y_max, z_min, z_max);
@@ -113,8 +103,10 @@ void SafeRegions::set_obstacles(std::vector<Eigen::Matrix3Xd> obstacles)
 	}
 }
 
-void SafeRegions::calc_safe_regions()
+void SafeRegions::calc_safe_regions_from_seedpoints(std::vector<Eigen::Vector3d> seedpoints)
 {
+	seedpoints_ = seedpoints;
+
 	// Obtain convex regions
 	for (auto seedpoint : seedpoints_)
 	{
@@ -130,17 +122,18 @@ void SafeRegions::calc_safe_regions()
 	}
 }
 
-void SafeRegions::set_automatic_seedpoints(int num_seeds)
+void SafeRegions::calc_safe_regions_auto(int num_seeds)
 {
-	if (num_dimensions_ == 3)
-	{
-		for(int i = 0; i < num_seeds; ++i)
-		{
-			Eigen::Vector3d next_seed = find_best_point();
-			calc_safe_region(next_seed);
-		}
-	}
+	// TODO Implement for 2 dimensions if needed
+	assert(num_dimensions_ == 3);
+
+	for(int i = 0; i < num_seeds; ++i)
+		calc_safe_region(find_best_point());
 }
+
+// *********
+// Private helper functions
+// *********
 
 void SafeRegions::calc_safe_region(Eigen::Vector3d seedpoint)
 {
@@ -154,12 +147,9 @@ void SafeRegions::calc_safe_region(Eigen::Vector3d seedpoint)
 	safe_region_bs_.push_back(iris_poly.getB());
 }
 
-// *********
-// Private helper functions
-// *********
-
 Eigen::Vector3d SafeRegions::find_best_point()
 {
+	// TODO this should be changeable
 	double dx = 0.3;
 	double dy = 0.3;
 	double dz = 1;

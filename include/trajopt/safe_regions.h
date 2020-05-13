@@ -21,11 +21,12 @@ namespace trajopt
 					double y_min, double y_max,
 					double z_min, double z_max
 					);
-			void set_seedpoints(std::vector<Eigen::Vector3d> seedpoints);
 			void set_obstacles(std::vector<Eigen::Matrix3Xd> obstacles);
 
-			void set_automatic_seedpoints(int num_seeds);
-			void calc_safe_regions();
+			void calc_safe_regions_auto(int num_seeds);
+			void calc_safe_regions_from_seedpoints(
+					std::vector<Eigen::Vector3d> seedpoints
+					);
 
 			std::vector<Eigen::MatrixXd> get_As() { return safe_region_As_; };
 			std::vector<Eigen::VectorXd> get_bs() { return safe_region_bs_; };
@@ -49,8 +50,6 @@ namespace trajopt
 			std::vector<iris::Polyhedron> safe_regions_;
 			std::vector<Eigen::MatrixXd> safe_region_As_;
 			std::vector<Eigen::VectorXd> safe_region_bs_;
-
-			void automatic_seed_2d(); // TODO implement
 
 			void calc_safe_region(Eigen::Vector3d seedpoint);
 
