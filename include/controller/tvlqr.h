@@ -27,22 +27,22 @@ namespace controller
 			ControllerConstructor();
 
 		private:
-			drake::symbolic::Expression x_;
-			drake::symbolic::Expression y_;
-			drake::symbolic::Expression z_;
+			const drake::symbolic::Variable x_;
+			const drake::symbolic::Variable y_;
+			const drake::symbolic::Variable z_;
 
-			drake::symbolic::Expression phi_;
-			drake::symbolic::Expression th_;
-			drake::symbolic::Expression psi_;
+			const drake::symbolic::Variable phi_;
+			const drake::symbolic::Variable th_;
+			const drake::symbolic::Variable psi_;
 
-			drake::symbolic::Expression u_th_;
-			drake::symbolic::Expression u_x_;
-			drake::symbolic::Expression u_y_;
-			drake::symbolic::Expression u_z_;
+			const drake::symbolic::Variable u_th_;
+			const drake::symbolic::Variable u_x_;
+			const drake::symbolic::Variable u_y_;
+			const drake::symbolic::Variable u_z_;
 
-			double g_ = 9.81;
-			double m_ = 2.856;
-			Eigen::Matrix3d inertia_;
+			const double g_ = 9.81;
+			const double m_ = 2.856;
+			Eigen::Matrix3d inertia_; // TODO make const
 
 			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
 	};
