@@ -150,9 +150,9 @@ void SafeRegions::calc_safe_region(Eigen::Vector3d seedpoint)
 Eigen::Vector3d SafeRegions::find_best_point()
 {
 	// TODO this should be changeable
-	double dx = 0.3;
-	double dy = 0.3;
-	double dz = 1;
+	double dx = 0.25;
+	double dy = 0.25;
+	double dz = 0.25;
 
 	Eigen::Vector3d point(x_min_, y_min_, z_min_);
 

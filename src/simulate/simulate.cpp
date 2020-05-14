@@ -126,12 +126,16 @@ void DrakeSimulation::calculate_safe_regions()
 	safe_regions.calc_safe_regions_from_seedpoints(seed_points);
 	*/
 
-	safe_regions.calc_safe_regions_auto(8);
+	safe_regions.calc_safe_regions_auto(12);
 	safe_region_As_ = safe_regions.get_As();
 	safe_region_bs_ = safe_regions.get_bs();
 
-	plot_3d_obstacles_footprints(obstacles_);
-	plot_3d_regions_footprint(safe_regions.get_polyhedrons());
+	// TODO hardcoded in bottom and top for plot
+	plot_3d_obstacles_footprints(obstacles_, 0);
+	plot_3d_regions_footprint(safe_regions.get_polyhedrons(), 0);
+
+	plot_3d_obstacles_footprints(obstacles_, 2.0);
+	plot_3d_regions_footprint(safe_regions.get_polyhedrons(), 2.0);
 }
 
 std::vector<Eigen::MatrixXd> DrakeSimulation::get_safe_regions_As()
@@ -192,7 +196,7 @@ void simulate()
 			init_pos, final_pos, num_traj_segments, safe_regions_As, safe_regions_bs, &traj
 			);
 
-	std::cout << "Press any key to simulate\n";
+	std::cout << "Trajectory found. Press any key to simulate\n";
 	system("read");
 
 	publish_traj_to_visualizer(&traj);

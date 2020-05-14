@@ -111,7 +111,7 @@ void plot_3d_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
 		for (int j = 0; j < obstacle.cols(); ++j)
 		{
 			auto point = obstacle(Eigen::all, j);
-			if (point(2) == 0.0)
+			if (point(2) == cross_section_height)
 				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
 		}
 		if (ground_points.size() > 0)
@@ -119,7 +119,9 @@ void plot_3d_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
 	}
 }
 
-void plot_3d_regions_footprint(std::vector<iris::Polyhedron> convex_polygons)
+void plot_3d_regions_footprint(
+		std::vector<iris::Polyhedron> convex_polygons, double cross_section_height
+		)
 {
 	// Plot convex regions
 	for (int i = 0; i < convex_polygons.size(); ++i)
@@ -128,7 +130,7 @@ void plot_3d_regions_footprint(std::vector<iris::Polyhedron> convex_polygons)
 		auto temp = convex_polygons[i].generatorPoints();
 		for (auto point : temp)
 		{
-			if (point(2) == 0.0)
+			if (point(2) == cross_section_height)
 				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
 		}
 		bool show = false;

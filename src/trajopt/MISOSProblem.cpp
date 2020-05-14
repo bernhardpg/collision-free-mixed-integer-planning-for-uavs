@@ -247,7 +247,7 @@ void MISOSProblem::add_safe_region_assignments(
 void MISOSProblem::generate()
 {
 	result_ = Solve(prog_);
-	//assert(result_.is_success());
+	assert(result_.is_success());
 	std::cout << "Solver id: " << result_.get_solver_id() << std::endl;
 	std::cout << "Found solution: " << result_.is_success() << std::endl;
 	std::cout << "Solution result: " << result_.get_solution_result() << std::endl;
