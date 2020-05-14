@@ -136,11 +136,30 @@ namespace controller
 		return drake::symbolic::Evaluate(B_, curr_state);
 	}
 
+	Eigen::Vector3d ControllerTVLQR::get_rpy_from_traj(
+			Eigen::Vector4d traj,
+			Eigen::Vector4d traj_DDt
+			)
+	{
+		Eigen::Vector3d t(traj_DDt(0), traj_DDt(1), traj_DDt(2) + g_);
+		Eigen::Vector3d z_b = t.normalized();
+
+		Eigen::Vector3d x_c(cos(traj(3)), sin(traj(3)), 0);
+		Eigen::Vector3d y_b = (z_b.cross(x_c)).normalized();
+		Eigen::Vector3d x_b = y_b.cross(z_b);
+
+		drake::math::RotationMatrix<double> R_NB =
+			drake::math::RotationMatrix<double>::MakeFromOrthonormalColumns(x_b, y_b, z_b);
+		
+		drake::math::RollPitchYaw rpy(R_NB);
+		return Eigen::Vector3d(rpy.roll_angle(), rpy.pitch_angle(), rpy.yaw_angle());
+	}
+
 	std::unique_ptr<DrakeControllerTVLQR> ControllerTVLQR::construct_drake_controller(
 			double start_time,
 			double end_time,
 			double dt,
-			trajopt::MISOSProblem* traj
+			trajopt::MISOSProblem* traj_obj
 			)
 	{
 		double hover_thrust = m_ * g_;
@@ -167,15 +186,30 @@ namespace controller
 		end_time_ = end_time;
 		N_ = (end_time_ - start_time_) / dt_;
 
-		// Construct trajectory
-		Eigen::VectorX<Eigen::VectorXd> trajectory(N_);
+		// Calculate full state trajectory from flat outputs
 		double t = 0;
 		for (int i = 0; i < N_; ++i)
 		{
 			t += dt;
 			if (t < 8) // TODO generalize
 			{
-				trajectory(i) = traj->eval_derivative(t,4);
+				Eigen::Vector3d r = traj_obj->eval(t);
+				Eigen::Vector3d r_Dt = traj_obj->eval_derivative(t,1);
+
+				Eigen::Vector4d traj;
+				Eigen::Vector4d traj_DDt;
+				Eigen::Vector4d traj_4Dt;
+
+				traj << r,
+								0;
+				traj_DDt << traj_obj->eval_derivative(t,2),
+									  0;
+				traj_4Dt << traj_obj->eval_derivative(t,4),
+									  0;
+
+				Eigen::Vector3d rpy = get_rpy_from_traj(traj, traj_DDt);
+				Eigen::Vector3d rpy_Dt;
+
 			}
 				
 			// TODO convert trajectory using diff flatness

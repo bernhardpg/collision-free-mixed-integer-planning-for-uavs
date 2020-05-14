@@ -1,11 +1,15 @@
 #pragma once
 
 #include <memory>
+#include <cmath>
 #include <Eigen/Core>
 #include <drake/systems/framework/vector_system.h>
 #include <drake/common/symbolic.h>
 #include <drake/common/symbolic_expression.h>
 #include <drake/math/continuous_algebraic_riccati_equation.h>
+
+#include <drake/math/rotation_matrix.h>
+#include <drake/math/roll_pitch_yaw.h>
 
 #include "trajopt/MISOSProblem.h"
 
@@ -104,6 +108,11 @@ namespace controller
 
 			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
 			Eigen::Vector3<drake::symbolic::Expression> get_wDDt();
+
+			Eigen::Vector3d get_rpy_from_traj(
+					Eigen::Vector4d traj,
+					Eigen::Vector4d traj_DDt
+					);
 
 			Eigen::MatrixXd eval_A(drake::symbolic::Environment curr_state);
 			Eigen::MatrixXd eval_B(drake::symbolic::Environment curr_state);
