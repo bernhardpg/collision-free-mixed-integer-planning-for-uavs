@@ -233,6 +233,17 @@ void MISOSProblem::add_region_constraint(
 	}
 }
 
+void MISOSProblem::add_safe_region_assignments(
+		Eigen::MatrixX<int> safe_regions_assignments
+		)
+{
+	// Add one constraint for each combination of region and segment
+	for (int j = 0; j < num_traj_segments_; ++j)
+		for (int r = 0; r < num_regions_; ++r)
+			if (safe_regions_assignments(r,j))
+				add_region_constraint(r, j, true);
+}
+
 void MISOSProblem::generate()
 {
 	result_ = Solve(prog_);
@@ -245,6 +256,7 @@ void MISOSProblem::generate()
 	std::cout << "Solver details: solution_status: \n" << details.solution_status << std::endl;
 
 	generate_polynomials();
+	generate_derivative_polynomials();
 }
 
 void MISOSProblem::generate_polynomials()
@@ -260,15 +272,25 @@ void MISOSProblem::generate_polynomials()
 	}
 }
 
-void MISOSProblem::add_safe_region_assignments(
-		Eigen::MatrixX<int> safe_regions_assignments
-		)
+void MISOSProblem::generate_derivative_polynomials()
 {
-	// Add one constraint for each combination of region and segment
-	for (int j = 0; j < num_traj_segments_; ++j)
-		for (int r = 0; r < num_regions_; ++r)
-			if (safe_regions_assignments(r,j))
-				add_region_constraint(r, j, true);
+	for (int d = 1; d < continuity_degree_ + 1; ++d)
+	{
+		Eigen::MatrixX<drake::symbolic::Polynomial> polynomialsDt_(
+				num_vars_, num_traj_segments_
+				);
+
+		for (int j = 0; j < num_traj_segments_; ++j)
+		{
+			Eigen::VectorX<drake::symbolic::Expression> der_expr = result_
+				.GetSolution(coeffs_d_[j][d - 1]) * m_;
+
+			for (int i = 0; i < num_vars_; ++i)
+				polynomialsDt_(i,j) = drake::symbolic::Polynomial(der_expr[i]);
+		}
+
+		polynomial_derivatives_.push_back(polynomialsDt_);
+	}
 }
 
 // ******
@@ -289,7 +311,14 @@ Eigen::MatrixX<int> MISOSProblem::get_region_assignments()
 
 Eigen::VectorX<double> MISOSProblem::eval(double t)
 {
+	return eval_derivative(t, 0);
+}
+
+Eigen::VectorX<double> MISOSProblem::eval_derivative(double t, int degree)
+{
 	assert(t < num_traj_segments_);
+	assert(degree <= continuity_degree_);
+
 	int traj_index = 0;
 	while ((double) traj_index + 1 < t) ++traj_index;
 
@@ -299,7 +328,10 @@ Eigen::VectorX<double> MISOSProblem::eval(double t)
 	drake::symbolic::Environment at_t {{t_, t_rel}};
 	for (int i = 0; i < num_vars_; ++i)
 	{
-		val(i) = polynomials_(i, traj_index).Evaluate(at_t);
+		if (degree == 0)
+			val(i) = polynomials_(i, traj_index).Evaluate(at_t);
+		else
+			val(i) = polynomial_derivatives_[degree - 1](i, traj_index).Evaluate(at_t);
 	}
 
 	return val;

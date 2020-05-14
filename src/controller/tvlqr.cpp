@@ -23,9 +23,7 @@ namespace controller
 		Q_(Q),
 		R_(R),
 		N_(As.size()),
-		S_inf_(
-				drake::math::ContinuousAlgebraicRiccatiEquation(As_(0), Bs_(0), Q_, R_)
-				),
+		S_inf_(drake::math::ContinuousAlgebraicRiccatiEquation(As_(0), Bs_(0), Q_, R_)),
 		feed_forward_(Eigen::VectorXd::Constant(4, hover_thrust/4)),
 		dt_(dt)
 	{}
@@ -176,7 +174,9 @@ namespace controller
 		{
 			t += dt;
 			if (t < 8) // TODO generalize
-				trajectory(i) = traj->eval(t);
+			{
+				trajectory(i) = traj->eval_derivative(t,4);
+			}
 				
 			// TODO convert trajectory using diff flatness
 		}

@@ -60,6 +60,7 @@ namespace controller
 					double end_time,
 					double dt,
 					trajopt::MISOSProblem* traj
+					// TODO more elegant way of passing this?
 					);
 
 		private:

@@ -45,6 +45,7 @@ namespace trajopt
 			void generate();
 			Eigen::MatrixX<int> get_region_assignments();
 			Eigen::VectorX<double> eval(double t);
+			Eigen::VectorX<double> eval_derivative(double t, int degree);
 		private:
 			const int num_vars_;
 			const int degree_;
@@ -68,10 +69,12 @@ namespace trajopt
 
 			drake::solvers::MathematicalProgramResult result_;
 			Eigen::MatrixX<drake::symbolic::Polynomial> polynomials_;
+			std::vector<Eigen::MatrixX<drake::symbolic::Polynomial>> polynomial_derivatives_;
 
 			Eigen::VectorX<drake::symbolic::Expression> get_coefficients_in_t(drake::symbolic::Polynomial p);
 
 			void generate_polynomials();
+			void generate_derivative_polynomials();
 	};
 	int factorial(int n);
 	}
