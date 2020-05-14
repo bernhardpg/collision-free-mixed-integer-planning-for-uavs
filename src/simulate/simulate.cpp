@@ -72,14 +72,21 @@ void DrakeSimulation::retrieve_obstacles()
 
 void DrakeSimulation::add_controller_tvlqr(trajopt::MISOSProblem* traj)
 {
-	auto tvlqr_constructor = controller::ControllerTVLQR(m_, arm_length_, inertia_, k_f_, k_m_);
+	auto tvlqr_constructor =
+		controller::ControllerTVLQR(m_, arm_length_, inertia_, k_f_, k_m_);
 	controller_tvlqr_ = builder_.AddSystem(
-			tvlqr_constructor.construct_drake_controller(0.0, FLAGS_simulation_time, 0.01, traj)
+			tvlqr_constructor
+			// TODO generalize end-time
+			.construct_drake_controller(0.01, traj)
 			);
 	controller_tvlqr_->set_name("TVLQR");
 
-	builder_.Connect(quadrotor_plant_->get_output_port(0), controller_tvlqr_->get_input_port());
-	builder_.Connect(controller_tvlqr_->get_output_port(), quadrotor_plant_->get_input_port(0));
+	builder_.Connect(
+			quadrotor_plant_->get_output_port(0), controller_tvlqr_->get_input_port()
+			);
+	builder_.Connect(
+			controller_tvlqr_->get_output_port(), quadrotor_plant_->get_input_port(0)
+			);
 }
 
 void DrakeSimulation::run_simulation(Eigen::VectorXd x0)

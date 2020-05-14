@@ -44,8 +44,10 @@ namespace trajopt
 			void create_region_binary_variables();
 			void generate();
 			Eigen::MatrixX<int> get_region_assignments();
+			double get_end_time();
 			Eigen::VectorX<double> eval(double t);
 			Eigen::VectorX<double> eval_derivative(double t, int degree);
+
 		private:
 			const int num_vars_;
 			const int degree_;

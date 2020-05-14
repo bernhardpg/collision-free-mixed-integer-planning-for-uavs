@@ -309,6 +309,11 @@ Eigen::MatrixX<int> MISOSProblem::get_region_assignments()
 	return assignments;
 }
 
+double MISOSProblem::get_end_time()
+{
+	return num_traj_segments_;
+}
+
 Eigen::VectorX<double> MISOSProblem::eval(double t)
 {
 	return eval_derivative(t, 0);

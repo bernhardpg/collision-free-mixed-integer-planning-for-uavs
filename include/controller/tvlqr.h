@@ -60,14 +60,16 @@ namespace controller
 					);
 
 			std::unique_ptr<DrakeControllerTVLQR> construct_drake_controller(
-					double start_time,
-					double end_time,
 					double dt,
 					trajopt::MISOSProblem* traj
 					// TODO more elegant way of passing this?
 					);
 
 		private:
+			// *******
+			// Symbolic variables
+			// *******
+
 			const drake::symbolic::Variable x_;
 			const drake::symbolic::Variable y_;
 			const drake::symbolic::Variable z_;
@@ -89,6 +91,16 @@ namespace controller
 			const drake::symbolic::Variable u2_; // Propeller force 2
 			const drake::symbolic::Variable u3_; // Propeller force 3
 
+			Eigen::VectorX<drake::symbolic::Variable> state_;
+			Eigen::VectorX<drake::symbolic::Variable> input_;
+			Eigen::VectorX<drake::symbolic::Expression> stateDt_;
+			Eigen::MatrixX<drake::symbolic::Expression> A_;
+			Eigen::MatrixX<drake::symbolic::Expression> B_;
+
+			// ********
+			// Parameters
+			// ********
+
 			int N_;
 			double start_time_;
 			double end_time_;
@@ -103,19 +115,10 @@ namespace controller
 			Eigen::Matrix4d forces_to_inputs_matrix_;
 			Eigen::Matrix4d inputs_to_forces_matrix_;
 
-			Eigen::VectorX<drake::symbolic::Variable> state_;
-			Eigen::VectorX<drake::symbolic::Variable> input_;
-			Eigen::VectorX<drake::symbolic::Expression> stateDt_;
-			Eigen::MatrixX<drake::symbolic::Expression> A_;
-			Eigen::MatrixX<drake::symbolic::Expression> B_;
+			// *********
+			// Differential flatness helper functions
+			// *********
 
-			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
-			Eigen::Vector3<drake::symbolic::Expression> get_wDt();
-
-			// *****
-			// Differential flatness
-			// *****
-			// Helper functions to calculate full state trajectory from flat outputs
 			double get_u_thrust_from_traj(Eigen::Vector3d a);
 			Eigen::Vector3d get_rpy_from_traj(
 					Eigen::Vector3d r,
@@ -140,6 +143,16 @@ namespace controller
 					Eigen::Vector3d w_Dt
 					);
 
+			Eigen::VectorXd get_state_traj_from_flat_outputs(trajopt::MISOSProblem* traj_obj, double t);
+
+			drake::symbolic::Environment make_drake_env_state(Eigen::VectorXd state);
+
+			// ********
+			// Linearization
+			// ********
+
+			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
+			Eigen::Vector3<drake::symbolic::Expression> get_wDt();
 
 			Eigen::MatrixXd eval_A(drake::symbolic::Environment curr_state);
 			Eigen::MatrixXd eval_B(drake::symbolic::Environment curr_state);

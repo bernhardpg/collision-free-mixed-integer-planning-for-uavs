@@ -323,7 +323,7 @@ namespace controller
 		return full_state_traj;
 	}
 
-	drake::symbolic::Environment ControllerTVLQR::make_drake_env_state(Eigen::VectorXd state)
+	drake::symbolic::Environment make_drake_env(Eigen::VectorXd state)
 	{
 		drake::symbolic::Environment state_drake_env{
 			{x_,     state(0)},
@@ -351,11 +351,31 @@ namespace controller
 	// *************
 
 	std::unique_ptr<DrakeControllerTVLQR> ControllerTVLQR::construct_drake_controller(
+			double start_time,
+			double end_time,
 			double dt,
 			trajopt::MISOSProblem* traj_obj
 			)
 	{
-		double hover_thrust = m_ * g_;
+		/*drake::symbolic::Environment curr_state{{x_,     0},
+																						{y_,     0},
+																						{z_,     1},
+																						{phi_,   0},
+																						{th_,    0},
+																						{psi_,   0},
+																						{xDt_,   0},
+																						{yDt_,   0},
+																						{zDt_,   0},
+																						{phiDt_, 0},
+																						{thDt_,  0},
+																						{psiDt_, 0},
+																						{u0_,    hover_thrust/4},
+																						{u1_,    hover_thrust/4},
+																						{u2_,    hover_thrust/4},
+																						{u3_,    hover_thrust/4}};
+
+																						*/
+
 		// TODO move these
 		Eigen::MatrixXd Q = Eigen::MatrixXd::Identity(12, 12);
 		Q(0,0) = 30;
@@ -365,8 +385,9 @@ namespace controller
 		Eigen::MatrixXd Q_f = Eigen::MatrixXd::Identity(12, 12);
 
 		dt_ = dt;
-		end_time_ = traj_obj->get_end_time();
-		N_ = end_time_ / dt_;
+		start_time_ = start_time;
+		end_time_ = end_time;
+		N_ = (end_time_ - start_time_) / dt_;
 
 		// *******
 		// Calculate full state trajectory from flat outpus
@@ -377,7 +398,8 @@ namespace controller
 		for (int i = 0; i < N_; ++i)
 		{
 			t += dt;
-			full_state_traj(i) = get_state_traj_from_flat_outputs(traj_obj, t);
+			if (t < 8) // TODO generalize
+				full_state_traj(i) = get_state_traj_from_flat_outputs(traj_obj, t);
 		}
 
 		// ******
@@ -386,20 +408,12 @@ namespace controller
 
 		Eigen::VectorX<Eigen::MatrixXd> As(N_);
 		Eigen::VectorX<Eigen::MatrixXd> Bs(N_);
-	
-		t = 0;
-		drake::symbolic::Environment curr_state;
-		for (int i = 0; i < N_; ++i)
-		{
-			t += dt;
-			curr_state = make_drake_env_state(full_state_traj(i));
-			As(i) = eval_A(curr_state);
-			Bs(i) = eval_B(curr_state);
-		}
-
 		Eigen::VectorX<Eigen::MatrixXd> Ss(N_);
+
 		// TODO change S inf
 		Ss(N_ - 1) = Q_f;
+		As(N_ - 1) = eval_A(curr_state);
+		Bs(N_ - 1) = eval_B(curr_state);
 
 		// Note: Integrating backwards
 		for (int i = N_ - 1; i > 0; --i)
@@ -413,6 +427,9 @@ namespace controller
 			// Forward Euler to integrate S backwards
 			Ss(i - 1) = Ss(i) + dt_ * neg_SDt;
 
+			// Evaluate linearization for next time step
+			As(i - 1) = eval_A(curr_state);
+			Bs(i - 1) = eval_B(curr_state);
 		}
 
 		return std::make_unique<DrakeControllerTVLQR>(
