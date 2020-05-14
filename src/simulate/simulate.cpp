@@ -53,7 +53,7 @@ void DrakeSimulation::connect_to_drake_visualizer()
 	//drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
 }
 
-std::vector<Eigen::Matrix3Xd> DrakeSimulation::get_obstacles()
+void DrakeSimulation::retrieve_obstacles()
 {
 	// Get query_object to pass geometry queries to (needs root context from diagram)
 	const auto diagram_context = diagram_->CreateDefaultContext();
@@ -67,16 +67,14 @@ std::vector<Eigen::Matrix3Xd> DrakeSimulation::get_obstacles()
 
 	// TODO refactor geometry functions into simulation?
 	auto obstacle_geometries = geometry::getObstacleGeometries(plant_);
-	std::vector<Eigen::Matrix3Xd> obstacles = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
-
-	return obstacles;
+	obstacles_ = geometry::getObstaclesVertices(&query_object, &inspector, obstacle_geometries);
 }
 
-void DrakeSimulation::add_controller_tvlqr()
+void DrakeSimulation::add_controller_tvlqr(trajopt::MISOSProblem* traj)
 {
 	auto tvlqr_constructor = controller::ControllerTVLQR(m_, arm_length_, inertia_, k_f_, k_m_);
 	controller_tvlqr_ = builder_.AddSystem(
-			tvlqr_constructor.construct_drake_controller(0.0, FLAGS_simulation_time, 0.01)
+			tvlqr_constructor.construct_drake_controller(0.0, FLAGS_simulation_time, 0.01, traj)
 			);
 	controller_tvlqr_->set_name("TVLQR");
 
@@ -104,6 +102,42 @@ void DrakeSimulation::run_simulation(Eigen::VectorXd x0)
 	simulator.AdvanceTo(FLAGS_simulation_time); // seconds
 }
 
+void DrakeSimulation::calculate_safe_regions()
+{
+	// Get convex safe regions
+	trajopt::SafeRegions safe_regions(3);
+	safe_regions.set_bounds(-5, 5, -2.5, 12.5, 0, 2); // Matches 'ground' object in obstacles.urdf
+	safe_regions.set_obstacles(obstacles_);
+
+	// Calc regions from seed points to save time
+	std::vector<Eigen::Vector3d> seed_points;
+	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
+	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(-2,3.5,0.5));
+	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
+	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
+	safe_regions.calc_safe_regions_from_seedpoints(seed_points);
+
+	//safe_regions.calc_safe_regions_auto(8);
+	safe_region_As_ = safe_regions.get_As();
+	safe_region_bs_ = safe_regions.get_bs();
+
+	std::cout << "Calculated safe regions" << std::endl;
+	//plot_3d_obstacles_footprints(obstacles);
+	//plot_3d_regions_footprint(safe_regions.get_polyhedrons());
+}
+
+std::vector<Eigen::MatrixXd> DrakeSimulation::get_safe_regions_As()
+{
+	return safe_region_As_;
+}
+
+std::vector<Eigen::VectorXd> DrakeSimulation::get_safe_regions_bs()
+{
+	return safe_region_bs_;
+}
+
+
 
 void simulate()
 {
@@ -123,13 +157,32 @@ void simulate()
 	double k_f_ = 1.0;
 	double k_m_ = 0.0245;
 
+	Eigen::Vector3d init_pos(0.0, 0.0, 1.0);
+	Eigen::Vector3d final_pos(0.0, 6.5, 1.0);
+
+	// TODO add init pos etc to drake sim
 	// Build the simulation first to get the obstacles
 	auto obst_sim = DrakeSimulation(m, arm_length, inertia, k_f_, k_m_);
 	obst_sim.build_quadrotor_diagram();
-	auto obstacles = obst_sim.get_obstacles();
+	obst_sim.retrieve_obstacles();
+	obst_sim.calculate_safe_regions();
+	auto safe_regions_As = obst_sim.get_safe_regions_As();
+	auto safe_regions_bs = obst_sim.get_safe_regions_bs();
 
 	// Calculate trajectory
-	find_trajectory(obstacles);
+	int num_vars = 3;
+	int num_traj_segments = 8;
+	int degree = 5;
+	int cont_degree = 4;
+
+	auto traj = trajopt::MISOSProblem(
+			num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos
+			);
+
+	find_trajectory(
+			init_pos, final_pos, num_traj_segments, safe_regions_As, safe_regions_bs, &traj
+			);
+	publish_traj_to_visualizer(num_traj_segments, &traj);
 
 	// Initial conditions
 	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
@@ -142,54 +195,25 @@ void simulate()
 
 	// Build the real simulation
 	auto sim = DrakeSimulation(m, arm_length, inertia, k_f_, k_m_);
-	sim.add_controller_tvlqr();
+	sim.add_controller_tvlqr(&traj);
 	sim.connect_to_drake_visualizer();
 	sim.build_quadrotor_diagram();
 	sim.run_simulation(x0);
 }
 
-void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
+void find_trajectory(
+		Eigen::Vector3d init_pos,
+		Eigen::Vector3d final_pos,
+		int num_traj_segments,
+		std::vector<Eigen::MatrixXd> safe_region_As,
+		std::vector<Eigen::VectorXd> safe_region_bs,
+		trajopt::MISOSProblem* traj
+		)
 {
-	// Get convex safe regions
-	trajopt::SafeRegions safe_regions(3);
-	// Matches 'ground' object in obstacles.urdf
-	safe_regions.set_bounds(-5, 5, -2.5, 12.5, 0, 2);
-	safe_regions.set_obstacles(obstacles);
-
-	// Calc regions from seed points to save time
-	std::vector<Eigen::Vector3d> seed_points;
-	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
-	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
-	seed_points.push_back(Eigen::Vector3d(-2,3.5,0.5));
-	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
-	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
-	safe_regions.calc_safe_regions_from_seedpoints(seed_points);
-
-	//safe_regions.calc_safe_regions_auto(8);
-	auto safe_region_As = safe_regions.get_As();
-	auto safe_region_bs = safe_regions.get_bs();
-
-	std::cout << "Calculated safe regions" << std::endl;
-	//plot_3d_obstacles_footprints(obstacles);
-	//plot_3d_regions_footprint(safe_regions.get_polyhedrons());
-
-	// ********************
-	// Calculate trajectory
-	// ********************
-
-	int num_vars = 3;
-	int num_traj_segments = 8;
-	int degree = 3;
-	int cont_degree = 2;
-
-	Eigen::VectorX<double> init_pos(num_vars);
-	Eigen::VectorX<double> final_pos(num_vars);
-	init_pos << 0.0, 0.0, 1.0;
-	final_pos << 0.0, 6.5, 1.0;
-
 	auto traj_3rd_deg = trajopt::MISOSProblem(
-			num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos
+			num_traj_segments, 3, 3, 2, init_pos, final_pos
 			);
+
 	traj_3rd_deg.add_convex_regions(safe_region_As, safe_region_bs);
 	traj_3rd_deg.create_region_binary_variables();
 	traj_3rd_deg.generate();
@@ -197,28 +221,24 @@ void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles)
 	std::cout << "Found 3rd order trajectory" << std::endl;
 
 	// Create trajectory with degree 5 with fixed region constraints
-	degree = 5;
-	cont_degree = 4;
-
-	auto traj = trajopt::MISOSProblem(num_traj_segments, num_vars, degree, cont_degree, init_pos, final_pos);
-	traj.add_convex_regions(safe_region_As, safe_region_bs);
-	traj.add_safe_region_assignments(safe_region_assignments);
-	traj.generate();
+	traj->add_convex_regions(safe_region_As, safe_region_bs);
+	traj->add_safe_region_assignments(safe_region_assignments);
+	traj->generate();
 	std::cout << "Found 5th order trajectory" << std::endl;
+}
 
-	// TODO cleanup
-	// Visualize trajectory
-
-	// Publish to visualizer
+// TODO replace num_traj_segments w end time
+void publish_traj_to_visualizer(double end_time, trajopt::MISOSProblem* traj)
+{
   std::vector<std::string> names;
   std::vector<Eigen::Isometry3d> poses;
-  for (double t = 0.0; t < (double)num_traj_segments; t += 0.1) {
+  for (double t = 0.0; t < end_time; t += 0.1) {
     names.push_back("X" + std::to_string(int(t * 100)));
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    pose.translation() = traj.eval(t);
+    pose.translation() = traj->eval(t);
     poses.push_back(pose);
   }
+
 	drake::lcm::DrakeLcm lcm;
   PublishFramesToLcm("DRAKE_DRAW_TRAJECTORY", poses, names, &lcm);
-
 }

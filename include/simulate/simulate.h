@@ -41,11 +41,15 @@ class DrakeSimulation
 				double k_m
 				);
 
-	void build_quadrotor_diagram();
-	void connect_to_drake_visualizer();
-	std::vector<Eigen::Matrix3Xd> get_obstacles();
-	void add_controller_tvlqr();
-	void run_simulation(Eigen::VectorXd x0);
+		void build_quadrotor_diagram();
+		void connect_to_drake_visualizer();
+		void retrieve_obstacles();
+		void add_controller_tvlqr(trajopt::MISOSProblem* traj);
+		void run_simulation(Eigen::VectorXd x0);
+		void calculate_safe_regions();
+
+		std::vector<Eigen::MatrixXd> get_safe_regions_As();
+		std::vector<Eigen::VectorXd> get_safe_regions_bs();
 
 	private:
 		double m_;
@@ -61,8 +65,19 @@ class DrakeSimulation
 
 		drake::examples::quadrotor::QuadrotorPlant<double>* quadrotor_plant_;
 		controller::DrakeControllerTVLQR* controller_tvlqr_;
+
+		std::vector<Eigen::Matrix3Xd> obstacles_;
+		std::vector<Eigen::MatrixXd> safe_region_As_;
+		std::vector<Eigen::VectorXd> safe_region_bs_;
 };
 
 void simulate();
-void find_trajectory(std::vector<Eigen::Matrix3Xd> obstacles);
-
+void find_trajectory(
+		Eigen::Vector3d init_pos,
+		Eigen::Vector3d final_pos,
+		int num_traj_segments,
+		std::vector<Eigen::MatrixXd> safe_region_As,
+		std::vector<Eigen::VectorXd> safe_region_bs,
+		trajopt::MISOSProblem* traj
+		);
+void publish_traj_to_visualizer(double end_time, trajopt::MISOSProblem* traj);

@@ -35,7 +35,7 @@ namespace trajopt
 					int region_number, int segment_number, bool always_enforce
 					);
 			void add_safe_region_assignments(
-					Eigen::MatrixX<int> 
+					Eigen::MatrixX<int>
 					);
 			void add_convex_regions(
 					std::vector<Eigen::MatrixX<double>> As,

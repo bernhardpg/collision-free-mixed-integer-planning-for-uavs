@@ -7,6 +7,8 @@
 #include <drake/common/symbolic_expression.h>
 #include <drake/math/continuous_algebraic_riccati_equation.h>
 
+#include "trajopt/MISOSProblem.h"
+
 namespace controller
 {
 	class DrakeControllerTVLQR : public drake::systems::VectorSystem<double>
@@ -46,10 +48,18 @@ namespace controller
 	{
 		public:
 			ControllerTVLQR(
-					double m, double arm_length, Eigen::Matrix3d inertia, double k_f, double k_m
+					double m,
+					double arm_length,
+					Eigen::Matrix3d inertia,
+					double k_f,
+					double k_m
 					);
+
 			std::unique_ptr<DrakeControllerTVLQR> construct_drake_controller(
-					double start_time, double end_time, double dt
+					double start_time,
+					double end_time,
+					double dt,
+					trajopt::MISOSProblem* traj
 					);
 
 		private:

@@ -139,7 +139,10 @@ namespace controller
 	}
 
 	std::unique_ptr<DrakeControllerTVLQR> ControllerTVLQR::construct_drake_controller(
-			double start_time, double end_time, double dt
+			double start_time,
+			double end_time,
+			double dt,
+			trajopt::MISOSProblem* traj
 			)
 	{
 		double hover_thrust = m_ * g_;
@@ -165,6 +168,18 @@ namespace controller
 		start_time_ = start_time;
 		end_time_ = end_time;
 		N_ = (end_time_ - start_time_) / dt_;
+
+		// Construct trajectory
+		Eigen::VectorX<Eigen::VectorXd> trajectory(N_);
+		double t = 0;
+		for (int i = 0; i < N_; ++i)
+		{
+			t += dt;
+			if (t < 8) // TODO generalize
+				trajectory(i) = traj->eval(t);
+				
+			// TODO convert trajectory using diff flatness
+		}
 
 		Eigen::VectorX<Eigen::MatrixXd> As(N_);
 		Eigen::VectorX<Eigen::MatrixXd> Bs(N_);

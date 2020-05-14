@@ -289,6 +289,7 @@ Eigen::MatrixX<int> MISOSProblem::get_region_assignments()
 
 Eigen::VectorX<double> MISOSProblem::eval(double t)
 {
+	assert(t < num_traj_segments_);
 	int traj_index = 0;
 	while ((double) traj_index + 1 < t) ++traj_index;
 
