@@ -76,7 +76,6 @@ void DrakeSimulation::add_controller_tvlqr(trajopt::MISOSProblem* traj)
 		controller::ControllerTVLQR(m_, arm_length_, inertia_, k_f_, k_m_);
 	controller_tvlqr_ = builder_.AddSystem(
 			tvlqr_constructor
-			// TODO generalize end-time
 			.construct_drake_controller(0.01, traj)
 			);
 	controller_tvlqr_->set_name("TVLQR");
@@ -178,7 +177,7 @@ void simulate()
 
 	// Calculate trajectory
 	int num_vars = 3;
-	int num_traj_segments = 8;
+	int num_traj_segments = 5;
 	int degree = 5;
 	int cont_degree = 4;
 
@@ -189,16 +188,14 @@ void simulate()
 	find_trajectory(
 			init_pos, final_pos, num_traj_segments, safe_regions_As, safe_regions_bs, &traj
 			);
-	publish_traj_to_visualizer(num_traj_segments, &traj);
+	publish_traj_to_visualizer(&traj);
 
 	// Initial conditions
 	Eigen::VectorX<double> x0 = Eigen::VectorX<double>::Zero(12);
-	x0 = Eigen::VectorX<double>::Random(12);
-	/*
-	x0 << 0,0,1,
+	x0 << init_pos,
 				0,0,0,
 				0,0,0,
-				0,0,0;*/
+				0,0,0;
 
 	// Build the real simulation
 	auto sim = DrakeSimulation(m, arm_length, inertia, k_f_, k_m_);
@@ -235,8 +232,9 @@ void find_trajectory(
 }
 
 // TODO replace num_traj_segments w end time
-void publish_traj_to_visualizer(double end_time, trajopt::MISOSProblem* traj)
+void publish_traj_to_visualizer(trajopt::MISOSProblem* traj)
 {
+	double end_time = traj->get_end_time();
   std::vector<std::string> names;
   std::vector<Eigen::Isometry3d> poses;
   for (double t = 0.0; t < end_time; t += 0.1) {

@@ -13,7 +13,9 @@ namespace controller
 			const Eigen::VectorX<Eigen::MatrixXd> Ss,
 			const Eigen::MatrixXd Q,
 			const Eigen::MatrixXd R,
-			double hover_thrust,
+			const Eigen::VectorX<Eigen::VectorXd> full_state_d,
+			const double hover_thrust,
+			const double end_time,
 			const double dt
 			)
 		: drake::systems::VectorSystem<double>(12,4),
@@ -23,10 +25,21 @@ namespace controller
 		Q_(Q),
 		R_(R),
 		N_(As.size()),
-		S_inf_(drake::math::ContinuousAlgebraicRiccatiEquation(As_(0), Bs_(0), Q_, R_)),
-		feed_forward_(Eigen::VectorXd::Constant(4, hover_thrust/4)),
+		A_inf_(As(Eigen::last)),
+		B_inf_(Bs(Eigen::last)),
+		S_inf_(Ss(Eigen::last)),
+		full_state_d_(full_state_d),
+		hover_thrust_(hover_thrust),
+		end_time_(end_time),
 		dt_(dt)
 	{
+		auto pos_d = full_state_d(Eigen::last)(Eigen::seq(0,2));
+		x_d_inf_.resize(12);
+		x_d_inf_ << pos_d,
+								0, 0, 0,
+								0, 0, 0,
+								0, 0, 0;
+		u_inf_ = Eigen::Vector4d(hover_thrust_/4, hover_thrust_/4, hover_thrust_/4, hover_thrust_/4);
 	}
 
 	void DrakeControllerTVLQR::DoCalcVectorOutput	(
@@ -38,29 +51,25 @@ namespace controller
 	{
 		double t = context.get_time();
 
-		Eigen::VectorXd x_d(12);
-		x_d << 0, 0, 1.0, 0, 0, 0,
-					 0, 0,   0, 0, 0, 0;
-	
-		if (false)
+		if (t < end_time_)
 		{
 		  int i = t / dt_;
 			auto B = Bs_(i);
 			auto S = Ss_(i);
+			Eigen::VectorXd x_d = full_state_d_(i)(Eigen::seq(0,11));
+			Eigen::Vector4d u = full_state_d_(i)(Eigen::seq(12,15));
+
+			Eigen::MatrixXd K = R_.inverse() * B.transpose() * S;
+			*output = - K * (input - x_d) + u;
 
 			//std::cout << B << std::endl << std::endl;
 			//std::cout << S << std::endl << std::endl;
-
-			//Eigen::MatrixXd K = - R_.inverse() * B.transpose() * S;
-			//*output = K * input;
 			//std::cout << input << std::endl << std::endl;
 		}
 		else
 		{
-			Eigen::MatrixXd K = R_.inverse() * Bs_(0).transpose() * S_inf_;
-			*output = - K * (input - x_d) + feed_forward_;
-			//std::cout << "error:\n" << input - x_d << std::endl << std::endl;
-			//std::cout << "-K*x\n" << *output << std::endl << std::endl;
+			Eigen::MatrixXd K = R_.inverse() * B_inf_.transpose() * S_inf_;
+			*output = - K * (input - x_d_inf_) + u_inf_;
 		}
 	}
 
@@ -142,6 +151,16 @@ namespace controller
 		// Calculate linear system
 		A_ = drake::symbolic::Jacobian(stateDt_, state_);
 		B_ = drake::symbolic::Jacobian(stateDt_, input_);
+
+		// ********
+		// Controller weights
+		// ********
+
+		Q_ = Eigen::MatrixXd::Identity(12, 12);
+		R_ = Eigen::MatrixXd::Identity(4, 4);
+		Q_(0,0) = 50;
+		Q_(1,1) = 50;
+		Q_(2,2) = 50;
 	}
 
 	// ********
@@ -356,13 +375,6 @@ namespace controller
 			)
 	{
 		double hover_thrust = m_ * g_;
-		// TODO move these
-		Eigen::MatrixXd Q = Eigen::MatrixXd::Identity(12, 12);
-		Q(0,0) = 30;
-		Q(1,1) = 30;
-		Q(2,2) = 30;
-		Eigen::MatrixXd R = Eigen::MatrixXd::Identity(4, 4);
-		Eigen::MatrixXd Q_f = Eigen::MatrixXd::Identity(12, 12);
 
 		dt_ = dt;
 		end_time_ = traj_obj->get_end_time();
@@ -381,7 +393,7 @@ namespace controller
 		}
 
 		// ******
-		// Calculate linearizations A, B and cost-to-go S
+		// Calculate linearizations A, B
 		// ******
 
 		Eigen::VectorX<Eigen::MatrixXd> As(N_);
@@ -397,9 +409,14 @@ namespace controller
 			Bs(i) = eval_B(curr_state);
 		}
 
+		// ********
+    // Calculate cost-to-go S
+		// ********
+
 		Eigen::VectorX<Eigen::MatrixXd> Ss(N_);
-		// TODO change S inf
-		Ss(N_ - 1) = Q_f;
+		auto S_inf =
+			drake::math::ContinuousAlgebraicRiccatiEquation(As(Eigen::last), Bs(Eigen::last), Q_, R_);
+		Ss(N_ - 1) = S_inf;
 
 		// Note: Integrating backwards
 		for (int i = N_ - 1; i > 0; --i)
@@ -407,16 +424,15 @@ namespace controller
 			// Differential Ricatti Equation
 			auto neg_SDt =
 				Ss(i) * As(i) + As(i).transpose() * Ss(i)
-				- Ss(i).transpose() * Bs(i) * R.inverse() * Bs(i).transpose() * Ss(i)
-				+ Q;
+				- Ss(i).transpose() * Bs(i) * R_.inverse() * Bs(i).transpose() * Ss(i)
+				+ Q_;
 
 			// Forward Euler to integrate S backwards
 			Ss(i - 1) = Ss(i) + dt_ * neg_SDt;
-
 		}
 
 		return std::make_unique<DrakeControllerTVLQR>(
-				As, Bs, Ss, Q, R, hover_thrust, dt_
+				As, Bs, Ss, Q_, R_, full_state_traj, hover_thrust, end_time_, dt_
 				);
 	}
 

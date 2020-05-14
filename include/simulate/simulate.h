@@ -80,4 +80,4 @@ void find_trajectory(
 		std::vector<Eigen::VectorXd> safe_region_bs,
 		trajopt::MISOSProblem* traj
 		);
-void publish_traj_to_visualizer(double end_time, trajopt::MISOSProblem* traj);
+void publish_traj_to_visualizer(trajopt::MISOSProblem* traj);

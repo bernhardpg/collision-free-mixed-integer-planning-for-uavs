@@ -24,7 +24,9 @@ namespace controller
 					const Eigen::VectorX<Eigen::MatrixXd> Ss,
 					const Eigen::MatrixXd Q,
 					const Eigen::MatrixXd R,
-					double hover_thrust,
+					const Eigen::VectorX<Eigen::VectorXd> x_d,
+					const double hover_thrust,
+					const double end_time,
 					const double dt
 					);
 
@@ -39,12 +41,18 @@ namespace controller
 			const Eigen::VectorX<Eigen::MatrixXd> As_;
 			const Eigen::VectorX<Eigen::MatrixXd> Bs_;
 			const Eigen::VectorX<Eigen::MatrixXd> Ss_;
+			const Eigen::MatrixXd A_inf_;
+			const Eigen::MatrixXd B_inf_;
+			const Eigen::MatrixXd S_inf_;
 			const Eigen::MatrixXd Q_;
 			const Eigen::MatrixXd R_;
-			Eigen::MatrixXd S_inf_;
-			const Eigen::VectorXd feed_forward_;
+			const Eigen::VectorX<Eigen::VectorXd> full_state_d_;
+			Eigen::VectorXd x_d_inf_;
+			Eigen::Vector4d u_inf_;
 			const double N_;
+			const double end_time_;
 			const double dt_;
+			const double hover_thrust_;
 	};
 
 
@@ -114,6 +122,9 @@ namespace controller
 
 			Eigen::Matrix4d forces_to_inputs_matrix_;
 			Eigen::Matrix4d inputs_to_forces_matrix_;
+
+			Eigen::MatrixXd Q_;
+			Eigen::MatrixXd R_;
 
 			// *********
 			// Differential flatness helper functions
