@@ -100,6 +100,9 @@ namespace controller
 			const double k_m_;
 			const Eigen::Matrix3d inertia_;
 
+			Eigen::Matrix4d forces_to_inputs_matrix_;
+			Eigen::Matrix4d inputs_to_forces_matrix_;
+
 			Eigen::VectorX<drake::symbolic::Variable> state_;
 			Eigen::VectorX<drake::symbolic::Variable> input_;
 			Eigen::VectorX<drake::symbolic::Expression> stateDt_;
@@ -132,6 +135,11 @@ namespace controller
 					Eigen::Vector3d a_DDt,
 					double u_thrust
 					);
+			Eigen::Vector3d get_u_torques_from_traj(
+					Eigen::Vector3d w,
+					Eigen::Vector3d w_Dt
+					);
+
 
 			Eigen::MatrixXd eval_A(drake::symbolic::Environment curr_state);
 			Eigen::MatrixXd eval_B(drake::symbolic::Environment curr_state);

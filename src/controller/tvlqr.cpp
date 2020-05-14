@@ -26,7 +26,11 @@ namespace controller
 		S_inf_(drake::math::ContinuousAlgebraicRiccatiEquation(As_(0), Bs_(0), Q_, R_)),
 		feed_forward_(Eigen::VectorXd::Constant(4, hover_thrust/4)),
 		dt_(dt)
-	{}
+	{
+	}
+
+
+
 
 	void DrakeControllerTVLQR::DoCalcVectorOutput	(
 			const drake::systems::Context<double>& context,
@@ -124,6 +128,14 @@ namespace controller
 		// Calculate linear system
 		A_ = drake::symbolic::Jacobian(stateDt_, state_);
 		B_ = drake::symbolic::Jacobian(stateDt_, input_);
+
+		// Set input mapping matrices
+		forces_to_inputs_matrix_ << k_f_, k_f_, k_f_, k_f_,
+																0, k_f_ * arm_length_, 0, - k_f_ * arm_length_,
+															 - k_f_ * arm_length_, 0, k_f_ * arm_length_, 0,
+															 k_m_, - k_m_, k_m_, - k_m_;
+
+		inputs_to_forces_matrix_ = forces_to_inputs_matrix_.inverse();
 	}
 
 	Eigen::MatrixXd ControllerTVLQR::eval_A(drake::symbolic::Environment curr_state)
@@ -216,6 +228,16 @@ namespace controller
 		return Eigen::Vector3d(p_Dt, q_Dt, 0);
 	}
 
+	Eigen::Vector3d ControllerTVLQR::get_u_torques_from_traj(
+			Eigen::Vector3d w,
+			Eigen::Vector3d w_Dt
+			)
+	{
+		Eigen::Vector3d u_torques = inertia_ * w_Dt	 + w.cross(inertia_ * w);
+		return u_torques;
+	}
+
+
 	std::unique_ptr<DrakeControllerTVLQR> ControllerTVLQR::construct_drake_controller(
 			double start_time,
 			double end_time,
@@ -266,9 +288,10 @@ namespace controller
 				double u_thrust = get_u_thrust_from_traj(a);
 				Eigen::Vector3d rpy = get_rpy_from_traj(r, a, yaw);
 				Eigen::Vector3d w = get_w_from_traj(rpy, a_Dt, yaw, u_thrust);
-				Eigen::Vector3d wDt = get_wDt_from_traj(rpy, w, a_Dt, a_DDt, u_thrust);
-				
-				// TODO translate inputs to inputs
+				Eigen::Vector3d w_Dt = get_wDt_from_traj(rpy, w, a_Dt, a_DDt, u_thrust);
+				Eigen::Vector3d u_torques = get_u_torques_from_traj(w, w_Dt);
+
+				Eigen::Vector4d u = inputs_to_forces_matrix_ * (Eigen::Vector4d() << u_thrust, u_torques).finished();
 			}
 		}
 
@@ -346,14 +369,9 @@ namespace controller
 	Eigen::Vector3<drake::symbolic::Expression> ControllerTVLQR::get_wDt()
 	{
 		Eigen::Vector3<Expression> rpy(phiDt_, thDt_, psiDt_);
-		Eigen::MatrixXd forces_to_torques(3,4);
 
-		forces_to_torques << 0, k_f_ * arm_length_, 0, - k_f_ * arm_length_,
-												 - k_f_ * arm_length_, 0, k_f_ * arm_length_, 0,
-												 k_m_, - k_m_, k_m_, - k_m_;
-
-		Eigen::Vector3<Expression> tau_c = forces_to_torques * input_;
-
+		auto forces_to_torques_matrix = forces_to_inputs_matrix_(Eigen::seq(1,3), Eigen::all);
+		Eigen::Vector3<Expression> tau_c = forces_to_torques_matrix * input_;
 
 		Eigen::Vector3<Expression> wDt =
 			inertia_.inverse() * (rpy.cross(inertia_ * rpy)) + tau_c;
