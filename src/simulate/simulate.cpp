@@ -2,7 +2,7 @@
 
 DEFINE_double(target_realtime_rate, 1.0,
               "Rate at which to run the simulation, relative to realtime");
-DEFINE_double(simulation_time, 10, "How long to simulate the pendulum");
+DEFINE_double(simulation_time, 15, "How long to simulate the pendulum");
 DEFINE_double(max_time_step, 1.0e-3,
               "Simulation time step used for integrator.");
 
@@ -26,7 +26,7 @@ DrakeSimulation::DrakeSimulation(
 
 	// Add obstacles from file
 	drake::multibody::Parser parser(plant_, scene_graph_);
-	auto obstacle_model = parser.AddModelFromFile("obstacles.urdf");
+	auto obstacle_model = parser.AddModelFromFile("models/obstacles_walls.urdf");
 	plant_->WeldFrames(
 			plant_->world_frame(), plant_->GetFrameByName("ground", obstacle_model));
 	plant_->Finalize();
@@ -116,6 +116,7 @@ void DrakeSimulation::calculate_safe_regions()
 	safe_regions.set_obstacles(obstacles_);
 
 	// Calc regions from seed points to save time
+	/*
 	std::vector<Eigen::Vector3d> seed_points;
 	seed_points.push_back(Eigen::Vector3d(1,1,0.5));
 	seed_points.push_back(Eigen::Vector3d(-4,6,0.5));
@@ -123,14 +124,14 @@ void DrakeSimulation::calculate_safe_regions()
 	seed_points.push_back(Eigen::Vector3d(-2,6,0.5));
 	seed_points.push_back(Eigen::Vector3d(0,5,0.5));
 	safe_regions.calc_safe_regions_from_seedpoints(seed_points);
+	*/
 
-	//safe_regions.calc_safe_regions_auto(8);
+	safe_regions.calc_safe_regions_auto(8);
 	safe_region_As_ = safe_regions.get_As();
 	safe_region_bs_ = safe_regions.get_bs();
 
-	std::cout << "Calculated safe regions" << std::endl;
-	//plot_3d_obstacles_footprints(obstacles);
-	//plot_3d_regions_footprint(safe_regions.get_polyhedrons());
+	plot_3d_obstacles_footprints(obstacles_);
+	plot_3d_regions_footprint(safe_regions.get_polyhedrons());
 }
 
 std::vector<Eigen::MatrixXd> DrakeSimulation::get_safe_regions_As()
@@ -147,7 +148,6 @@ std::vector<Eigen::VectorXd> DrakeSimulation::get_safe_regions_bs()
 
 void simulate()
 {
-	std::cout << "Running drake simulation" << std::endl;
 	DRAKE_DEMAND(FLAGS_simulation_time > 0);
 
 	// *******
@@ -163,21 +163,24 @@ void simulate()
 	double k_f_ = 1.0;
 	double k_m_ = 0.0245;
 
-	Eigen::Vector3d init_pos(0.0, 0.0, 1.0);
-	Eigen::Vector3d final_pos(0.0, 6.5, 1.0);
+	Eigen::Vector3d init_pos(0.0, -1, 1.0);
+	Eigen::Vector3d final_pos(0.0, 10, 1.0);
 
 	// TODO add init pos etc to drake sim
 	// Build the simulation first to get the obstacles
+
+
 	auto obst_sim = DrakeSimulation(m, arm_length, inertia, k_f_, k_m_);
 	obst_sim.build_quadrotor_diagram();
 	obst_sim.retrieve_obstacles();
 	obst_sim.calculate_safe_regions();
+	std::cout << "Calculated safe regions" << std::endl;
 	auto safe_regions_As = obst_sim.get_safe_regions_As();
 	auto safe_regions_bs = obst_sim.get_safe_regions_bs();
 
 	// Calculate trajectory
 	int num_vars = 3;
-	int num_traj_segments = 5;
+	int num_traj_segments = 7;
 	int degree = 5;
 	int cont_degree = 4;
 
@@ -188,6 +191,10 @@ void simulate()
 	find_trajectory(
 			init_pos, final_pos, num_traj_segments, safe_regions_As, safe_regions_bs, &traj
 			);
+
+	std::cout << "Press any key to simulate\n";
+	system("read");
+
 	publish_traj_to_visualizer(&traj);
 
 	// Initial conditions
@@ -202,7 +209,9 @@ void simulate()
 	sim.add_controller_tvlqr(&traj);
 	sim.connect_to_drake_visualizer();
 	sim.build_quadrotor_diagram();
-	sim.run_simulation(x0);
+	std::cout << "Running drake simulation" << std::endl;
+	while (true)
+		sim.run_simulation(x0);
 }
 
 void find_trajectory(

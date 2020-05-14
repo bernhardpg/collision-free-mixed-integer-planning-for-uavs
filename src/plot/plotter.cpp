@@ -114,7 +114,8 @@ void plot_3d_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
 			if (point(2) == 0.0)
 				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
 		}
-		plot_2d_convex_hull(ground_points, true);
+		if (ground_points.size() > 0)
+			plot_2d_convex_hull(ground_points, true);
 	}
 }
 
@@ -132,6 +133,7 @@ void plot_3d_regions_footprint(std::vector<iris::Polyhedron> convex_polygons)
 		}
 		bool show = false;
 		if (i == convex_polygons.size() - 1) show = true;
-		plot_2d_convex_hull(ground_points, false, show);
+		if (ground_points.size() > 0)
+			plot_2d_convex_hull(ground_points, false, show);
 	}
 }

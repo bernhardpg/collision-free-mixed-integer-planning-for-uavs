@@ -55,14 +55,14 @@
   	<visual>
       <origin xyz="2 4 1" rpy="0 0 0" />
       <geometry>
-        <box size="6 0.1 2" />
+        <box size="6 0.4 2" />
       </geometry>
       <material name="Green"/>
     </visual>
     <collision>
       <origin xyz="2 4 1" rpy="0 0 0" />
       <geometry>
-        <box size="6 .1 2." />
+        <box size="6 0.4 2" />
       </geometry>
     </collision>
    </link>
@@ -76,16 +76,16 @@
   	<visual>
       <origin xyz="-2 7 1" rpy="0 0 0" />
       <geometry>
-        <box size="1 1 2" />
+        <box size="6 0.4 2" />
       </geometry>
-      <material name="Red"/>
+      <material name="Green"/>
     </visual>
     <collision>
       <origin xyz="-2 7 1" rpy="0 0 0" />
       <geometry>
-        <box size="1 1 2" />
+        <box size="6 0.4 2" />
       </geometry>
-      <material name="Red"/>
+      <material name="Green"/>
     </collision>
    </link>
 
@@ -98,20 +98,19 @@
   	<visual>
       <origin xyz="-3 2 1" rpy="0 0 0" />
       <geometry>
-        <box size="1 1 2" />
+        <box size="2 0.4 2" />
       </geometry>
-      <material name="Red"/>
+      <material name="Green"/>
     </visual>
     <collision>
       <origin xyz="-3 2 1" rpy="0 0 0" />
       <geometry>
-        <box size="1 1 2" />
+        <box size="2 0.4 2" />
       </geometry>
-      <material name="Red"/>
+      <material name="Green"/>
     </collision>
    </link>
 
-	<!--
    <link name="obs4">
    	<inertial>
    		<mass value=".5" />
@@ -121,16 +120,16 @@
   	<visual>
       <origin xyz="-3 4 1.5" rpy="0 0 0" />
       <geometry>
-        <box size="4 1 1" />
+        <box size="4 0.4 1" />
       </geometry>
-      <material name="Blue"/>
+      <material name="Green"/>
     </visual>
     <collision>
       <origin xyz="-3 4 1.5" rpy="0 0 0" />
       <geometry>
-        <box size="4 1 1" />
+        <box size="4 0.4 1" />
       </geometry>
-      <material name="Blue"/>
+      <material name="Green"/>
     </collision>
    </link>
 
@@ -139,7 +138,6 @@
 			<child link="obs4"/>
 			<origin xyz="0 0 0"/>
 		</joint>
-	-->
 
 		<joint name="obs2_to_ground" type="fixed">
 			<parent link="ground"/>
