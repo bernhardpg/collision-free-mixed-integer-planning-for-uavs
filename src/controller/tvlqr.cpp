@@ -111,15 +111,15 @@ namespace controller
 
 		// Calculate derivatives
 		Eigen::Vector3<Expression> rDt(xDt_, yDt_, zDt_);			 // Position Dt
-		Eigen::Vector3<Expression> wDt(phiDt_, thDt_, psiDt_); // Angular velocity Dt
+		Eigen::Vector3<Expression> rpyDt(phiDt_, thDt_, psiDt_); // Angular velocity Dt
 		Eigen::Vector3<Expression> rDDt = get_rDDt();	
-		Eigen::Vector3<Expression> wDDt = get_wDDt();	
+		Eigen::Vector3<Expression> rpyDDt = get_rpyDDt();	
 
 		stateDt_.resize(12);
 		stateDt_ << rDt,
-								wDt,
+								rpyDt,
 								rDDt,
-								wDDt;
+								rpyDDt;
 
 		// Calculate linear system
 		A_ = drake::symbolic::Jacobian(stateDt_, state_);
@@ -155,6 +155,36 @@ namespace controller
 		return Eigen::Vector3d(rpy.roll_angle(), rpy.pitch_angle(), rpy.yaw_angle());
 	}
 
+	Eigen::Vector3d ControllerTVLQR::get_rpyDt_from_traj(
+			Eigen::Vector3d rpy,
+			Eigen::Vector3d a_Dt,
+			double yaw_Dt
+			)
+	{
+		Eigen::Matrix3d R_NB = 
+			drake::math::RotationMatrix(drake::math::RollPitchYaw(rpy))
+			.matrix();
+		Eigen::Vector3d x_b = R_NB(Eigen::all, 0);
+		Eigen::Vector3d y_b = R_NB(Eigen::all, 1);
+		Eigen::Vector3d z_b = R_NB(Eigen::all, 2);
+
+		// TODO replace 1 by u_thrust!
+		Eigen::Vector3d h_w = (m_ / 1) * (a_Dt - (z_b.dot(a_Dt) * z_b));
+
+		double p = - h_w.dot(y_b);
+		double q = h_w.dot(x_b);
+		double r = yaw_Dt * Eigen::Vector3d(0,0,1).dot(z_b);
+
+		return Eigen::Vector3d(p, q, r);
+	}
+
+	double ControllerTVLQR::get_u_thrust_from_traj(Eigen::Vector4d traj_DDt)
+	{
+		Eigen::Vector3d t(traj_DDt(0), traj_DDt(1), traj_DDt(2) + g_);
+		
+		return m_ * t.norm();
+	}
+
 	std::unique_ptr<DrakeControllerTVLQR> ControllerTVLQR::construct_drake_controller(
 			double start_time,
 			double end_time,
@@ -187,6 +217,8 @@ namespace controller
 		N_ = (end_time_ - start_time_) / dt_;
 
 		// Calculate full state trajectory from flat outputs
+		// Based on paper by Mellinger, Kumar (2011):
+		// "Minimum snap trajectory generation and control for quadrotors"
 		double t = 0;
 		for (int i = 0; i < N_; ++i)
 		{
@@ -195,24 +227,30 @@ namespace controller
 			{
 				Eigen::Vector3d r = traj_obj->eval(t);
 				Eigen::Vector3d r_Dt = traj_obj->eval_derivative(t,1);
+				Eigen::Vector3d r_3Dt = traj_obj->eval_derivative(t,3);
 
 				Eigen::Vector4d traj;
+				Eigen::Vector4d traj_Dt;
 				Eigen::Vector4d traj_DDt;
 				Eigen::Vector4d traj_4Dt;
 
+				// Last element is yaw trajectory
 				traj << r,
 								0;
+				traj_Dt << r_Dt,
+									 0;
 				traj_DDt << traj_obj->eval_derivative(t,2),
 									  0;
 				traj_4Dt << traj_obj->eval_derivative(t,4),
 									  0;
 
 				Eigen::Vector3d rpy = get_rpy_from_traj(traj, traj_DDt);
-				Eigen::Vector3d rpy_Dt;
-
-			}
+				Eigen::Vector3d rpy_Dt = get_rpyDt_from_traj(rpy, r_3Dt, 0);
+				// TODO get accelerations
 				
-			// TODO convert trajectory using diff flatness
+				// TODO translate inputs to inputs
+				double u_thrust = get_u_thrust_from_traj(traj_DDt);
+			}
 		}
 
 		Eigen::VectorX<Eigen::MatrixXd> As(N_);
@@ -236,8 +274,6 @@ namespace controller
 		// Note: Integrating backwards
 		for (int i = N_ - 1; i > 0; --i)
 		{
-			// TODO update state from trajectory
-
 			// Differential Ricatti Equation
 			auto neg_SDt =
 				Ss(i) * As(i) + As(i).transpose() * Ss(i)
@@ -288,7 +324,7 @@ namespace controller
 		return rDDt;
 	} 
 
-	Eigen::Vector3<drake::symbolic::Expression> ControllerTVLQR::get_wDDt()
+	Eigen::Vector3<drake::symbolic::Expression> ControllerTVLQR::get_rpyDDt()
 	{
 		Eigen::Vector3<Expression> rpy(phiDt_, thDt_, psiDt_);
 		Eigen::MatrixXd forces_to_torques(3,4);
@@ -300,9 +336,9 @@ namespace controller
 		Eigen::Vector3<Expression> tau_c = forces_to_torques * input_;
 
 
-		Eigen::Vector3<Expression> wDDt =
+		Eigen::Vector3<Expression> rpyDDt =
 			inertia_.inverse() * (rpy.cross(inertia_ * rpy)) + tau_c;
 
-		return wDDt;
+		return rpyDDt;
 	}
 } // namespace controller

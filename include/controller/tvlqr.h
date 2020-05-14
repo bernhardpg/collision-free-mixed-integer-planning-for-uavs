@@ -107,12 +107,20 @@ namespace controller
 			Eigen::MatrixX<drake::symbolic::Expression> B_;
 
 			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
-			Eigen::Vector3<drake::symbolic::Expression> get_wDDt();
+			Eigen::Vector3<drake::symbolic::Expression> get_rpyDDt();
 
 			Eigen::Vector3d get_rpy_from_traj(
 					Eigen::Vector4d traj,
 					Eigen::Vector4d traj_DDt
 					);
+
+			Eigen::Vector3d get_rpyDt_from_traj(
+					Eigen::Vector3d rpy,
+					Eigen::Vector3d a_Dt,
+					double yaw_Dt
+					);
+
+			double get_u_thrust_from_traj(Eigen::Vector4d traj_DDt);
 
 			Eigen::MatrixXd eval_A(drake::symbolic::Environment curr_state);
 			Eigen::MatrixXd eval_B(drake::symbolic::Environment curr_state);
