@@ -107,20 +107,31 @@ namespace controller
 			Eigen::MatrixX<drake::symbolic::Expression> B_;
 
 			Eigen::Vector3<drake::symbolic::Expression> get_rDDt();
-			Eigen::Vector3<drake::symbolic::Expression> get_rpyDDt();
+			Eigen::Vector3<drake::symbolic::Expression> get_wDt();
 
+			// *****
+			// Differential flatness
+			// *****
+			// Helper functions to calculate full state trajectory from flat outputs
+			double get_u_thrust_from_traj(Eigen::Vector3d a);
 			Eigen::Vector3d get_rpy_from_traj(
-					Eigen::Vector4d traj,
-					Eigen::Vector4d traj_DDt
+					Eigen::Vector3d r,
+					Eigen::Vector3d a,
+					double yaw
 					);
-
-			Eigen::Vector3d get_rpyDt_from_traj(
+			Eigen::Vector3d get_w_from_traj(
 					Eigen::Vector3d rpy,
 					Eigen::Vector3d a_Dt,
-					double yaw_Dt
+					double yaw_Dt,
+					double u_thrust
 					);
-
-			double get_u_thrust_from_traj(Eigen::Vector4d traj_DDt);
+			Eigen::Vector3d get_wDt_from_traj(
+					Eigen::Vector3d rpy,
+					Eigen::Vector3d w,
+					Eigen::Vector3d a_Dt,
+					Eigen::Vector3d a_DDt,
+					double u_thrust
+					);
 
 			Eigen::MatrixXd eval_A(drake::symbolic::Environment curr_state);
 			Eigen::MatrixXd eval_B(drake::symbolic::Environment curr_state);

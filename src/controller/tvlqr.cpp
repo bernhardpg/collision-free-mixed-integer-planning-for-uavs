@@ -111,15 +111,15 @@ namespace controller
 
 		// Calculate derivatives
 		Eigen::Vector3<Expression> rDt(xDt_, yDt_, zDt_);			 // Position Dt
-		Eigen::Vector3<Expression> rpyDt(phiDt_, thDt_, psiDt_); // Angular velocity Dt
+		Eigen::Vector3<Expression> w(phiDt_, thDt_, psiDt_); // Angular velocity Dt
 		Eigen::Vector3<Expression> rDDt = get_rDDt();	
-		Eigen::Vector3<Expression> rpyDDt = get_rpyDDt();	
+		Eigen::Vector3<Expression> wDt = get_wDt();	
 
 		stateDt_.resize(12);
 		stateDt_ << rDt,
-								rpyDt,
+								w,
 								rDDt,
-								rpyDDt;
+								wDt;
 
 		// Calculate linear system
 		A_ = drake::symbolic::Jacobian(stateDt_, state_);
@@ -136,15 +136,23 @@ namespace controller
 		return drake::symbolic::Evaluate(B_, curr_state);
 	}
 
+	double ControllerTVLQR::get_u_thrust_from_traj(Eigen::Vector3d a)
+	{
+		Eigen::Vector3d t(a(0), a(1), a(2) + g_);
+		
+		return m_ * t.norm();
+	}
+
 	Eigen::Vector3d ControllerTVLQR::get_rpy_from_traj(
-			Eigen::Vector4d traj,
-			Eigen::Vector4d traj_DDt
+			Eigen::Vector3d r,
+			Eigen::Vector3d a, 
+			double yaw
 			)
 	{
-		Eigen::Vector3d t(traj_DDt(0), traj_DDt(1), traj_DDt(2) + g_);
+		Eigen::Vector3d t(a(0), a(1), a(2) + g_);
 		Eigen::Vector3d z_b = t.normalized();
 
-		Eigen::Vector3d x_c(cos(traj(3)), sin(traj(3)), 0);
+		Eigen::Vector3d x_c(cos(yaw), sin(yaw), 0);
 		Eigen::Vector3d y_b = (z_b.cross(x_c)).normalized();
 		Eigen::Vector3d x_b = y_b.cross(z_b);
 
@@ -155,10 +163,11 @@ namespace controller
 		return Eigen::Vector3d(rpy.roll_angle(), rpy.pitch_angle(), rpy.yaw_angle());
 	}
 
-	Eigen::Vector3d ControllerTVLQR::get_rpyDt_from_traj(
+	Eigen::Vector3d ControllerTVLQR::get_w_from_traj(
 			Eigen::Vector3d rpy,
 			Eigen::Vector3d a_Dt,
-			double yaw_Dt
+			double yaw_Dt,
+			double u_thrust
 			)
 	{
 		Eigen::Matrix3d R_NB = 
@@ -168,8 +177,7 @@ namespace controller
 		Eigen::Vector3d y_b = R_NB(Eigen::all, 1);
 		Eigen::Vector3d z_b = R_NB(Eigen::all, 2);
 
-		// TODO replace 1 by u_thrust!
-		Eigen::Vector3d h_w = (m_ / 1) * (a_Dt - (z_b.dot(a_Dt) * z_b));
+		Eigen::Vector3d h_w = (m_ / u_thrust) * (a_Dt - (z_b.dot(a_Dt) * z_b));
 
 		double p = - h_w.dot(y_b);
 		double q = h_w.dot(x_b);
@@ -178,11 +186,34 @@ namespace controller
 		return Eigen::Vector3d(p, q, r);
 	}
 
-	double ControllerTVLQR::get_u_thrust_from_traj(Eigen::Vector4d traj_DDt)
+	// Angular acceleration
+	Eigen::Vector3d ControllerTVLQR::get_wDt_from_traj(
+			Eigen::Vector3d rpy,
+			Eigen::Vector3d w,
+			Eigen::Vector3d a_Dt,
+			Eigen::Vector3d a_DDt,
+			double u_thrust
+			)
 	{
-		Eigen::Vector3d t(traj_DDt(0), traj_DDt(1), traj_DDt(2) + g_);
-		
-		return m_ * t.norm();
+		Eigen::Matrix3d R_NB = 
+			drake::math::RotationMatrix(drake::math::RollPitchYaw(rpy))
+			.matrix();
+		Eigen::Vector3d x_b = R_NB(Eigen::all, 0);
+		Eigen::Vector3d y_b = R_NB(Eigen::all, 1);
+		Eigen::Vector3d z_b = R_NB(Eigen::all, 2);
+
+		Eigen::Vector3d temp = w.cross(w.cross(z_b));
+
+		Eigen::Vector3d h_alpha = 
+			(m_ / u_thrust) * (a_DDt - (z_b.dot(a_DDt)) * z_b)
+			+ (-temp + z_b.dot(temp) * z_b)
+			- (2 / u_thrust) * z_b.dot(m_ * a_Dt) * w.cross(z_b);
+
+		double p_Dt = - h_alpha.dot(y_b);
+		double q_Dt = h_alpha.dot(x_b);
+
+		// TODO implement yaw if needed
+		return Eigen::Vector3d(p_Dt, q_Dt, 0);
 	}
 
 	std::unique_ptr<DrakeControllerTVLQR> ControllerTVLQR::construct_drake_controller(
@@ -225,31 +256,19 @@ namespace controller
 			t += dt;
 			if (t < 8) // TODO generalize
 			{
+				double yaw = 0;
 				Eigen::Vector3d r = traj_obj->eval(t);
 				Eigen::Vector3d r_Dt = traj_obj->eval_derivative(t,1);
-				Eigen::Vector3d r_3Dt = traj_obj->eval_derivative(t,3);
+				Eigen::Vector3d a = traj_obj->eval_derivative(t,2);
+				Eigen::Vector3d a_Dt = traj_obj->eval_derivative(t,3);
+				Eigen::Vector3d a_DDt = traj_obj->eval_derivative(t,4);
 
-				Eigen::Vector4d traj;
-				Eigen::Vector4d traj_Dt;
-				Eigen::Vector4d traj_DDt;
-				Eigen::Vector4d traj_4Dt;
-
-				// Last element is yaw trajectory
-				traj << r,
-								0;
-				traj_Dt << r_Dt,
-									 0;
-				traj_DDt << traj_obj->eval_derivative(t,2),
-									  0;
-				traj_4Dt << traj_obj->eval_derivative(t,4),
-									  0;
-
-				Eigen::Vector3d rpy = get_rpy_from_traj(traj, traj_DDt);
-				Eigen::Vector3d rpy_Dt = get_rpyDt_from_traj(rpy, r_3Dt, 0);
-				// TODO get accelerations
+				double u_thrust = get_u_thrust_from_traj(a);
+				Eigen::Vector3d rpy = get_rpy_from_traj(r, a, yaw);
+				Eigen::Vector3d w = get_w_from_traj(rpy, a_Dt, yaw, u_thrust);
+				Eigen::Vector3d wDt = get_wDt_from_traj(rpy, w, a_Dt, a_DDt, u_thrust);
 				
 				// TODO translate inputs to inputs
-				double u_thrust = get_u_thrust_from_traj(traj_DDt);
 			}
 		}
 
@@ -324,7 +343,7 @@ namespace controller
 		return rDDt;
 	} 
 
-	Eigen::Vector3<drake::symbolic::Expression> ControllerTVLQR::get_rpyDDt()
+	Eigen::Vector3<drake::symbolic::Expression> ControllerTVLQR::get_wDt()
 	{
 		Eigen::Vector3<Expression> rpy(phiDt_, thDt_, psiDt_);
 		Eigen::MatrixXd forces_to_torques(3,4);
@@ -336,9 +355,9 @@ namespace controller
 		Eigen::Vector3<Expression> tau_c = forces_to_torques * input_;
 
 
-		Eigen::Vector3<Expression> rpyDDt =
+		Eigen::Vector3<Expression> wDt =
 			inertia_.inverse() * (rpy.cross(inertia_ * rpy)) + tau_c;
 
-		return rpyDDt;
+		return wDt;
 	}
 } // namespace controller
