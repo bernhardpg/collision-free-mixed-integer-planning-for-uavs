@@ -9,6 +9,7 @@
 #include "trajopt/MISOSProblem.h"
 
 namespace plt = matplotlibcpp;
+typedef	std::unordered_map<std::string, std::string> string_map;
 
 void plot_traj(
 		trajopt::MISOSProblem *traj, int num_traj_segments, Eigen::VectorX<double> init_pos, Eigen::VectorX<double> final_pos

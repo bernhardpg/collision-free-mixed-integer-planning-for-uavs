@@ -26,6 +26,7 @@
 #include "controller/tvlqr.h"
 #include "plot/plotter.h"
 #include "simulate/publish_trajectory.h"
+#include "unistd.h"
 
 // TODO add namespace
 
@@ -38,7 +39,8 @@ class DrakeSimulation
 				double arm_length,
 				Eigen::Matrix3d inertia,
 				double k_f,
-				double k_m
+				double k_m,
+				std::string obstacle_model_path
 				);
 
 		void build_quadrotor_diagram();
@@ -46,7 +48,7 @@ class DrakeSimulation
 		void retrieve_obstacles();
 		void add_controller_tvlqr(trajopt::MISOSProblem* traj);
 		void run_simulation(Eigen::VectorXd x0);
-		void calculate_safe_regions();
+		void calculate_safe_regions(int num_safe_regions);
 
 		std::vector<Eigen::MatrixXd> get_safe_regions_As();
 		std::vector<Eigen::VectorXd> get_safe_regions_bs();

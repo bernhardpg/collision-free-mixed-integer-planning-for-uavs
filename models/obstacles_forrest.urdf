@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <robot name="office">
 
-	<!-- Works very well with 8 regions and 6 segments-->
    <material name="Brown">
      <color rgba="0.33 0.21 0.04 1"/>
    </material>

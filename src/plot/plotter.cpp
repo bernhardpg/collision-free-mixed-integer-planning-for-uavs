@@ -30,7 +30,6 @@ void plot_MISOSTrajectory(
 			sample_times_y.push_back(traj->eval(t)(1));
 	}
 
-	typedef	std::unordered_map<std::string, std::string> string_map;
 
 	// Plot init and final pos
 	std::vector<double> init_x;
@@ -77,9 +76,9 @@ void plot_2d_region(std::vector<Eigen::VectorXd> points, bool filled)
 	y.push_back(points[0](1));
 
 	if (filled)
-		plt::fill(x, y, {});
+		plt::fill(x, y, {{"color","red"}});
 	else
-		plt::plot(x,y);
+		plt::plot(x,y, {{"color","blue"}});
 }
 
 // Takes 2D obstacles defined by vertices and plots them
@@ -101,8 +100,12 @@ void plot_2d_obstacles(std::vector<Eigen::MatrixXd> obstacles)
 	}
 }
 
-void plot_3d_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
+// TODO doesnt really do cross-section, only top and bottom
+void plot_3d_obstacles_footprints(
+		std::vector<Eigen::Matrix3Xd> obstacles, double cross_section_height
+		)
 {
+	bool show = false;
 	// Plot convex regions
 	for (int i = 0; i < obstacles.size(); ++i)
 	{
@@ -114,8 +117,9 @@ void plot_3d_obstacles_footprints(std::vector<Eigen::Matrix3Xd> obstacles)
 			if (point(2) == cross_section_height)
 				ground_points.push_back((Eigen::VectorXd(2) << point(0), point(1)).finished());
 		}
+		//if (i == obstacles.size() - 1) show = true;
 		if (ground_points.size() > 0)
-			plot_2d_convex_hull(ground_points, true);
+			plot_2d_convex_hull(ground_points, true, show);
 	}
 }
 
@@ -139,3 +143,5 @@ void plot_3d_regions_footprint(
 			plot_2d_convex_hull(ground_points, false, show);
 	}
 }
+
+

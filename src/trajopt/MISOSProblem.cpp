@@ -94,8 +94,8 @@ MISOSProblem::MISOSProblem(
 			(coeffs_[num_traj_segments_ - 1] * m_value_t1).array() == final_cond.array());
 
 	// TODO change
-	// Force first derivatives at initial and final position to be 0
-	for (int d = 1; d <= 1; ++d)
+	// Force start and end velocity and acceleration to be zero
+	for (int d = 1; d <= 2; ++d)
 	{
 		prog_.AddLinearConstraint(
 				(coeffs_d_[0][d - 1] * m_value_t0).array() == Eigen::VectorXd::Zero(num_vars_).array()
@@ -247,13 +247,13 @@ void MISOSProblem::add_safe_region_assignments(
 void MISOSProblem::generate()
 {
 	result_ = Solve(prog_);
-	assert(result_.is_success());
 	std::cout << "Solver id: " << result_.get_solver_id() << std::endl;
 	std::cout << "Found solution: " << result_.is_success() << std::endl;
 	std::cout << "Solution result: " << result_.get_solution_result() << std::endl;
 	auto details = result_.get_solver_details<drake::solvers::MosekSolver>();
 	std::cout << "Solver details: rescode: \n" << details.rescode << std::endl;
 	std::cout << "Solver details: solution_status: \n" << details.solution_status << std::endl;
+	assert(result_.is_success());
 
 	generate_polynomials();
 	generate_derivative_polynomials();

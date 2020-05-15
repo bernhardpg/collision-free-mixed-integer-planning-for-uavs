@@ -19,7 +19,9 @@ find_package(Python3 COMPONENTS Development NumPy)
 find_package(gflags REQUIRED) # Google flags
 include_directories(${gflags_INCLUDE_DIRS})
 
-list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/drake/build/install)
+#list(APPEND CMAKE_PREFIX_PATH /opt/drake)
+#list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/drake/build/install)
+list(APPEND CMAKE_PREFIX_PATH /Users/bernhardpausgraesdal/google_drive/Studier/8th_semester/6_832_underactuated_robotics/04_underactuated_project/drake_new/build/install)
 find_package(drake CONFIG REQUIRED)
 include_directories(${drake_INCLUDE_DIRS})
 
