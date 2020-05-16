@@ -152,7 +152,7 @@ Eigen::Vector3d SafeRegions::find_best_point()
 	// TODO this should be changeable
 	double dx = 0.3;
 	double dy = 0.3;
-	double dz = 1;
+	double dz = 0.3;
 
 	Eigen::Vector3d point(x_min_, y_min_, z_min_);
 

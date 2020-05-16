@@ -141,6 +141,10 @@ void plot_3d_regions_footprint(
 		if (i == convex_polygons.size() - 1) show = true;
 		if (ground_points.size() > 0)
 			plot_2d_convex_hull(ground_points, false, show);
+		else
+		{
+			std::cout << "No regions to show\n";
+		}
 	}
 }
 

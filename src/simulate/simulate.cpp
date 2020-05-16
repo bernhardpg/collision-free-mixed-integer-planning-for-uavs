@@ -1,6 +1,6 @@
 #include "simulate/simulate.h"
 
-DEFINE_double(target_realtime_rate, 1.0,
+DEFINE_double(target_realtime_rate, 0.5,
               "Rate at which to run the simulation, relative to realtime");
 DEFINE_double(simulation_time, 13, "How long to simulate the pendulum");
 DEFINE_double(max_time_step, 1.0e-3,
@@ -116,7 +116,7 @@ void DrakeSimulation::calculate_safe_regions(int num_safe_regions)
 	// Get convex safe regions
 	trajopt::SafeRegions safe_regions(3);
 	// TODO get from ground object
-	safe_regions.set_bounds(-5, 5, -2.5, 12.5, 0, 2); // Matches 'ground' object in obstacles.urdf
+	safe_regions.set_bounds(-6, 6, -2.5, 12.5, 0, 2); // Matches 'ground' object in obstacles.urdf
 	//simple: safe_regions.set_bounds(-5, 5, -2.5, 12.5, 0, 2); // Matches 'ground' object in obstacles.urdf
 	safe_regions.set_obstacles(obstacles_);
 	safe_regions.calc_safe_regions_auto(num_safe_regions);
@@ -126,6 +126,9 @@ void DrakeSimulation::calculate_safe_regions(int num_safe_regions)
 	// TODO hardcoded in bottom and top for plot
 	plot_3d_obstacles_footprints(obstacles_, 0);
 	plot_3d_regions_footprint(safe_regions.get_polyhedrons(), 0);
+
+	plot_3d_obstacles_footprints(obstacles_, 2.0);
+	plot_3d_regions_footprint(safe_regions.get_polyhedrons(), 2.0);
 }
 
 std::vector<Eigen::MatrixXd> DrakeSimulation::get_safe_regions_As()
@@ -165,12 +168,12 @@ void simulate()
 	double k_f_ = 1.0;
 	double k_m_ = 0.0245;
 
-	Eigen::Vector3d init_pos(0.0, -2, 1.0);
-	Eigen::Vector3d final_pos(0.0, 10, 1.0);
-	int num_safe_regions = 4;
+	Eigen::Vector3d init_pos(-3.0, -1, 1.0);
+	Eigen::Vector3d final_pos(3.0, 11.5, 1.0);
+	int num_safe_regions = 12;
 
 	// Build the simulation first to calculate the safe regions from the obstacles
-	std::string obstacle_model_path = "models/obstacles_simple.urdf";
+	std::string obstacle_model_path = "models/obstacles_corridors.urdf";
 	auto obst_sim = DrakeSimulation(
 			m, arm_length, inertia, k_f_, k_m_, obstacle_model_path
 			);
@@ -183,7 +186,7 @@ void simulate()
 
 	// Calculate trajectory
 	int num_vars = 3;
-	int num_traj_segments = 5;
+	int num_traj_segments = 15;
 	int degree = 5;
 	int cont_degree = 4;
 
@@ -215,11 +218,8 @@ void simulate()
 	sim.connect_to_drake_visualizer();
 	sim.build_quadrotor_diagram();
 	std::cout << "Running drake simulation" << std::endl;
-	for (int i = 0; i < 10; ++i)
-	{
+	while (true)
 		sim.run_simulation(x0);
-	}
-
 }
 
 void find_trajectory(

@@ -118,18 +118,18 @@
 		<inertia ixx="10"  ixy="0"  ixz="0" iyy="10" iyz="0" izz="10" />
    	</inertial>
   	<visual>
-      <origin xyz="-3 4 1.5" rpy="0 0 0" />
+      <origin xyz="-3 4 1.25" rpy="0 0 0" />
       <geometry>
-        <box size="4 0.4 1" />
+        <box size="4 0.4 1.5" />
       </geometry>
-      <material name="Green"/>
+      <material name="Blue"/>
     </visual>
     <collision>
-      <origin xyz="-3 4 1.5" rpy="0 0 0" />
+      <origin xyz="-3 4 1.25" rpy="0 0 0" />
       <geometry>
-        <box size="4 0.4 1" />
+        <box size="4 0.4 1.5" />
       </geometry>
-      <material name="Green"/>
+      <material name="Blue"/>
     </collision>
    </link>
 
